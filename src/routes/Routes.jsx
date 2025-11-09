@@ -5,6 +5,7 @@ import Home from '../pages/Home';
 import IssueDetails from '../pages/IssueDetails';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
+import ForgotPassword from '../pages/ForgotPassword';
 import ProtectedRoute from '../components/ProtectedRoute';
 
 const Routes = createBrowserRouter([
@@ -23,6 +24,10 @@ const Routes = createBrowserRouter([
             {
                 path: '/register',
                 element: <Register />
+            },
+            {
+                path: '/forgot-password',
+                element: <ForgotPassword />
             },
             {
                 path: '/addIssues',

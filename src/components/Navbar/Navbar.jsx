@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, ArrowRight, Leaf } from 'lucide-react';
-import { Link } from 'react-router';
+import { Menu, X, ArrowRight, Leaf, LogIn, LogOut, User } from 'lucide-react';
+import { Link, useNavigate } from 'react-router';
+import { useAuth } from '../../contexts/AuthContext';
+import toast from 'react-hot-toast';
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -61,12 +65,45 @@ export default function Navbar() {
               ))}
             </div>
 
-            {/* Desktop Right Side - CTA Button */}
+            {/* Desktop Right Side - Auth Buttons */}
             <div className="hidden lg:flex items-center space-x-4">
-              <button className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded transition-colors duration-200 font-medium flex items-center space-x-2">
-                <span>Get A Quote</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
+              {user ? (
+                <>
+                  <div className="flex items-center space-x-2 text-gray-700">
+                    {user.photoURL ? (
+                      <img src={user.photoURL} alt={user.displayName || 'User'} className="w-8 h-8 rounded-full" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
+                        <User className="w-5 h-5 text-white" />
+                      </div>
+                    )}
+                    <span className="text-sm font-medium">{user.displayName || user.email}</span>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await logout();
+                        toast.success('Logged out successfully');
+                        navigate('/');
+                      } catch (error) {
+                        toast.error('Failed to logout');
+                      }
+                    }}
+                    className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded transition-colors duration-200 font-medium flex items-center space-x-2"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Logout</span>
+                  </button>
+                </>
+              ) : (
+                <Link
+                  to="/login"
+                  className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded transition-colors duration-200 font-medium flex items-center space-x-2"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>Login</span>
+                </Link>
+              )}
             </div>
 
             {/* Mobile menu button */}
@@ -106,10 +143,45 @@ export default function Navbar() {
                   </a>
                 )
               ))}
-              <button className="w-full bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded transition-colors duration-200 font-medium mt-4 flex items-center justify-center space-x-2">
-                <span>Get A Quote</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
+              {user ? (
+                <>
+                  <div className="flex items-center space-x-2 text-white px-4 py-2">
+                    {user.photoURL ? (
+                      <img src={user.photoURL} alt={user.displayName || 'User'} className="w-8 h-8 rounded-full" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
+                        <User className="w-5 h-5 text-white" />
+                      </div>
+                    )}
+                    <span className="text-sm">{user.displayName || user.email}</span>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await logout();
+                        toast.success('Logged out successfully');
+                        setIsMobileMenuOpen(false);
+                        navigate('/');
+                      } catch (error) {
+                        toast.error('Failed to logout');
+                      }
+                    }}
+                    className="w-full bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded transition-colors duration-200 font-medium mt-4 flex items-center justify-center space-x-2"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Logout</span>
+                  </button>
+                </>
+              ) : (
+                <Link
+                  to="/login"
+                  className="w-full bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded transition-colors duration-200 font-medium mt-4 flex items-center justify-center space-x-2"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>Login</span>
+                </Link>
+              )}
             </div>
           </div>
         </div>

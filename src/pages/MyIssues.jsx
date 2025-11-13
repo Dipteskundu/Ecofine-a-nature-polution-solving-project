@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { db } from '../Firebase/firebase.config';
-import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { Edit, Trash2, Eye, Plus } from 'lucide-react';
 import UpdateIssueModal from '../components/UpdateIssueModal';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
@@ -21,119 +19,32 @@ export default function MyIssues() {
     document.title = 'My Issues | EcoFine';
   }, []);
 
-  // Fetch issues from Firestore with fallback to JSON
   useEffect(() => {
     if (!user) {
       setLoading(false);
       return;
     }
-
-    let isMounted = true;
-    let unsubscribe = null;
-    let timeoutId = null;
-
-    // Fallback to JSON file
-    const loadFromJSON = async () => {
+    let active = true;
+    const fetchIssues = async () => {
       try {
-        const response = await fetch('/issues.json');
-        const data = await response.json();
-        // Filter by user email
-          const userIssues = data.filter(issue => issue.email === user.email);
-        // Add mock IDs for JSON data
-        const issuesWithIds = userIssues.map((issue, index) => ({
-          id: `json-${index}-${Date.now()}`,
-          ...issue,
-          status: issue.status || 'ongoing'
-        }));
-          // Sort by date (newest first)
-        issuesWithIds.sort((a, b) => {
-          const dateA = new Date(a.date || 0);
-          const dateB = new Date(b.date || 0);
+        const res = await fetch('http://localhost:3000/issues');
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (data.result || []);
+        const userIssues = list.filter((i) => (i.email && i.email === user.email) || (i.userId && i.userId === user.uid));
+        userIssues.sort((a, b) => {
+          const dateA = new Date(a.date || a.createdAt || 0);
+          const dateB = new Date(b.date || b.createdAt || 0);
           return dateB - dateA;
         });
-        if (isMounted) {
-          setIssues(issuesWithIds);
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('Error loading from JSON:', error);
-        if (isMounted) {
-          setLoading(false);
-          setIssues([]);
-        }
+        if (active) setIssues(userIssues.map((i) => ({ ...i, id: i._id || i.id })));
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (active) setLoading(false);
       }
     };
-
-    try {
-      // Try Firestore first
-      const issuesRef = collection(db, 'issues');
-      const q = query(issuesRef, where('email', '==', user.email));
-
-      let hasReceivedData = false;
-
-      // Set timeout to prevent infinite loading (fallback to JSON after 3 seconds)
-      timeoutId = setTimeout(() => {
-        if (!hasReceivedData && isMounted) {
-          console.log('Firestore timeout, loading from JSON');
-          if (unsubscribe) unsubscribe();
-          loadFromJSON();
-        }
-      }, 3000);
-
-      unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          hasReceivedData = true;
-          if (timeoutId) clearTimeout(timeoutId);
-          
-          if (!isMounted) return;
-          
-          const issuesData = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          
-          // If Firestore has data, use it
-          if (issuesData.length > 0) {
-            issuesData.sort((a, b) => {
-              const dateA = new Date(a.date || a.createdAt || 0);
-              const dateB = new Date(b.date || b.createdAt || 0);
-              return dateB - dateA;
-            });
-            setIssues(issuesData);
-            setLoading(false);
-          } else {
-            // If Firestore is empty, try JSON fallback for demo data
-            // This helps users see the page working even if they haven't created issues yet
-            if (isMounted) {
-              loadFromJSON();
-            }
-          }
-        },
-        (error) => {
-          hasReceivedData = true;
-          if (timeoutId) clearTimeout(timeoutId);
-          
-          console.error('Firestore error:', error);
-          // On error, try JSON fallback
-          if (isMounted) {
-            loadFromJSON();
-          }
-        }
-      );
-    } catch (error) {
-      if (timeoutId) clearTimeout(timeoutId);
-      console.error('Error setting up Firestore listener:', error);
-      if (isMounted) {
-        loadFromJSON();
-      }
-    }
-
-    return () => {
-      isMounted = false;
-      if (unsubscribe) unsubscribe();
-      if (timeoutId) clearTimeout(timeoutId);
-    };
+    fetchIssues();
+    return () => { active = false; };
   }, [user]);
 
   const handleUpdate = (issue) => {
@@ -148,25 +59,15 @@ export default function MyIssues() {
 
   const handleUpdateSubmit = async (updatedData) => {
     try {
-      // Check if it's a Firestore document (starts with firestore ID pattern) or JSON data
-      if (selectedIssue.id && !selectedIssue.id.startsWith('json-')) {
-        const issueRef = doc(db, 'issues', selectedIssue.id);
-        await updateDoc(issueRef, {
-          ...updatedData,
-          updatedAt: new Date().toISOString()
-        });
-        toast.success('Issue updated successfully!');
-      } else {
-        // For JSON data, just update local state
-        setIssues(prevIssues => 
-          prevIssues.map(issue => 
-            issue.id === selectedIssue.id 
-              ? { ...issue, ...updatedData }
-              : issue
-          )
-        );
-        toast.success('Issue updated successfully! (Note: JSON data changes are temporary)');
-      }
+      const id = selectedIssue._id || selectedIssue.id;
+      const res = await fetch(`http://localhost:3000/issues/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...updatedData, updatedAt: new Date().toISOString() })
+      });
+      if (!res.ok) throw new Error('Failed to update issue');
+      setIssues((prev) => prev.map((issue) => (issue.id === id ? { ...issue, ...updatedData } : issue)));
+      toast.success('Issue updated successfully!');
       setUpdateModalOpen(false);
       setSelectedIssue(null);
     } catch (error) {
@@ -178,18 +79,11 @@ export default function MyIssues() {
 
   const handleDeleteConfirm = async () => {
     try {
-      // Check if it's a Firestore document or JSON data
-      if (selectedIssue.id && !selectedIssue.id.startsWith('json-')) {
-        const issueRef = doc(db, 'issues', selectedIssue.id);
-        await deleteDoc(issueRef);
-        toast.success('Issue deleted successfully!');
-      } else {
-        // For JSON data, just update local state
-        setIssues(prevIssues => 
-          prevIssues.filter(issue => issue.id !== selectedIssue.id)
-        );
-        toast.success('Issue deleted successfully! (Note: JSON data changes are temporary)');
-      }
+      const id = selectedIssue._id || selectedIssue.id;
+      const res = await fetch(`http://localhost:3000/issues/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete issue');
+      setIssues((prev) => prev.filter((issue) => issue.id !== id));
+      toast.success('Issue deleted successfully!');
       setDeleteModalOpen(false);
       setSelectedIssue(null);
     } catch (error) {
@@ -235,7 +129,7 @@ export default function MyIssues() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 pt-24 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-24 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading your issues...</p>
@@ -245,7 +139,7 @@ export default function MyIssues() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-24">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -268,12 +162,7 @@ export default function MyIssues() {
         {issues.length === 0 ? (
           <div className="bg-white rounded-lg shadow-lg p-12 text-center">
             <p className="text-gray-500 text-lg mb-4">You haven't reported any issues yet.</p>
-            <button
-              onClick={() => navigate('/addIssues')}
-              className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-            >
-              Add New Issue
-            </button>
+
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-lg overflow-hidden">

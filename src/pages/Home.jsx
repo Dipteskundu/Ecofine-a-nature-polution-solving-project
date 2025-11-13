@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, ChevronLeft, ChevronRight, Trash2, Building2, Wrench, Route, Users, CheckCircle, Clock, Heart } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router';
 import { useAuth } from '../hooks/useAuth';
 import toast from 'react-hot-toast';
 
 export default function Home() {
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState('newest');
   const [currentSlide, setCurrentSlide] = useState(0);
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -67,7 +68,6 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    // Fetch issues from server API
     const fetchLatestIssues = async () => {
       setLoading(true);
       try {
@@ -75,10 +75,13 @@ export default function Home() {
         if (!res.ok) {
           throw new Error(`Failed to fetch issues: ${res.status}`);
         }
-        const data = await res.json();
-        const sorted = Array.isArray(data)
-          ? data.sort((a, b) => new Date(b?.date || 0) - new Date(a?.date || 0))
-          : [];
+        const payload = await res.json();
+        const list = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.result)
+            ? payload.result
+            : [];
+        const sorted = list.sort((a, b) => new Date(b?.date || 0) - new Date(a?.date || 0));
         setIssues(sorted.slice(0, 6));
       } catch (err) {
         console.error('Error fetching issues:', err);
@@ -100,20 +103,38 @@ export default function Home() {
   }, [bannerSlides.length]);
 
   const handleSeeDetails = (issue) => {
-    // Check if user is logged in
+    const issueId = issue?._id || issue?.id;
+    if (!issueId) {
+      toast.error('Invalid issue id');
+      return;
+    }
     if (user) {
-      // If logged in, navigate directly to issue details
-      navigate('/issue-details', { state: { issue } });
+      navigate(`/issue-details/${issueId}`);
     } else {
-      // If not logged in, redirect to login with intended destination
-      navigate('/login', { 
-        state: { 
-          from: { 
-            pathname: '/issue-details', 
-            state: { issue } 
-          } 
-        } 
+      navigate('/login', {
+        state: {
+          from: {
+            pathname: `/issue-details/${issueId}`
+          }
+        }
       });
+    }
+  };
+
+  const getSortedIssues = () => {
+    const arr = [...issues];
+    switch (sortBy) {
+      case 'oldest':
+        return arr.sort((a, b) => new Date(a?.date || 0) - new Date(b?.date || 0));
+      case 'amount_high':
+        return arr.sort((a, b) => (b?.amount || 0) - (a?.amount || 0));
+      case 'amount_low':
+        return arr.sort((a, b) => (a?.amount || 0) - (b?.amount || 0));
+      case 'category_az':
+        return arr.sort((a, b) => (a?.category || '').localeCompare(b?.category || ''));
+      case 'newest':
+      default:
+        return arr.sort((a, b) => new Date(b?.date || 0) - new Date(a?.date || 0));
     }
   };
 
@@ -141,13 +162,13 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-gray-900">
       {/* Banner Section */}
       <section className="relative h-[500px] md:h-[600px] overflow-hidden">
         <AnimatePresence mode="wait">
           {bannerSlides.map((slide, index) => (
             index === currentSlide && (
-              <motion.div
+              <Motion.div
                 key={index}
                 className="absolute inset-0"
                 initial={{ opacity: 0, x: 100 }}
@@ -162,7 +183,7 @@ export default function Home() {
                   <div className={`absolute inset-0 bg-gradient-to-r ${slide.bgColor}`} />
                   <div className="relative z-10 h-full flex items-center">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-                      <motion.div
+                      <Motion.div
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.2 }}
@@ -178,11 +199,11 @@ export default function Home() {
                           <span>Get Started</span>
                           <ArrowRight className="w-5 h-5" />
                         </button>
-                      </motion.div>
+                      </Motion.div>
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </Motion.div>
             )
           ))}
         </AnimatePresence>
@@ -230,7 +251,7 @@ export default function Home() {
             {categories.map((category, index) => {
               const Icon = category.icon;
               return (
-                <motion.div
+                <Motion.div
                   key={category.name}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
@@ -247,7 +268,7 @@ export default function Home() {
                   <p className="text-gray-600">
                     {category.description}
                   </p>
-                </motion.div>
+                </Motion.div>
               );
             })}
           </div>
@@ -265,6 +286,19 @@ export default function Home() {
               Latest issues reported by our community
             </p>
           </div>
+          <div className="mb-6 flex justify-end">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+            >
+              <option value="newest">Sort by: Newest</option>
+              <option value="oldest">Sort by: Oldest</option>
+              <option value="amount_high">Amount: High to Low</option>
+              <option value="amount_low">Amount: Low to High</option>
+              <option value="category_az">Category: A → Z</option>
+            </select>
+          </div>
           {loading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>
@@ -276,14 +310,14 @@ export default function Home() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {issues.map((issue, index) => (
-              <motion.div
+              {getSortedIssues().map((issue, index) => (
+                <Motion.div
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
               >
                 <div className="h-48 overflow-hidden">
                   <img
@@ -319,7 +353,7 @@ export default function Home() {
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
-              </motion.div>
+              </Motion.div>
               ))}
             </div>
           )}
@@ -330,7 +364,7 @@ export default function Home() {
       <section className="py-16 bg-gradient-to-r from-green-500 to-emerald-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
@@ -339,8 +373,8 @@ export default function Home() {
               <Users className="w-16 h-16 mx-auto mb-4" />
               <h3 className="text-4xl font-bold mb-2">1,250+</h3>
               <p className="text-xl">Registered Users</p>
-            </motion.div>
-            <motion.div
+            </Motion.div>
+            <Motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
@@ -350,8 +384,8 @@ export default function Home() {
               <CheckCircle className="w-16 h-16 mx-auto mb-4" />
               <h3 className="text-4xl font-bold mb-2">850+</h3>
               <p className="text-xl">Issues Resolved</p>
-            </motion.div>
-            <motion.div
+            </Motion.div>
+            <Motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
@@ -361,7 +395,7 @@ export default function Home() {
               <Clock className="w-16 h-16 mx-auto mb-4" />
               <h3 className="text-4xl font-bold mb-2">120+</h3>
               <p className="text-xl">Pending Issues</p>
-            </motion.div>
+            </Motion.div>
           </div>
         </div>
       </section>
@@ -369,7 +403,7 @@ export default function Home() {
       {/* Volunteer CTA Section */}
       <section className="py-20 bg-gray-900 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -385,7 +419,7 @@ export default function Home() {
               <span>Join as Volunteer</span>
               <ArrowRight className="w-5 h-5" />
             </button>
-          </motion.div>
+          </Motion.div>
         </div>
       </section>
     </div>

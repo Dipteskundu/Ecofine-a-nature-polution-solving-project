@@ -7,12 +7,23 @@ import toast from 'react-hot-toast';
 export default function AllIssues() {
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
   const navigate = useNavigate();
   const { user } = useAuth();
 
   useEffect(() => {
     document.title = 'All Issues | EcoFine';
   }, []);
+
+  const filtered = issues.filter((i) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      (i.title || '').toLowerCase().includes(q) ||
+      (i.category || '').toLowerCase().includes(q) ||
+      (i.location || '').toLowerCase().includes(q)
+    );
+  });
 
   useEffect(() => {
     // Fetch issues from server API
@@ -41,19 +52,20 @@ export default function AllIssues() {
   }, []);
 
   const handleSeeDetails = (issue) => {
-    // Check if user is logged in
+    const issueId = issue?._id || issue?.id;
+    if (!issueId) {
+      toast.error('Invalid issue id');
+      return;
+    }
     if (user) {
-      // If logged in, navigate directly to issue details
-      navigate('/issue-details', { state: { issue } });
+      navigate(`/issue-details/${issueId}`);
     } else {
-      // If not logged in, redirect to login with intended destination
-      navigate('/login', { 
-        state: { 
-          from: { 
-            pathname: '/issue-details', 
-            state: { issue } 
-          } 
-        } 
+      navigate('/login', {
+        state: {
+          from: {
+            pathname: `/issue-details/${issueId}`
+          }
+        }
       });
     }
   };
@@ -73,16 +85,24 @@ export default function AllIssues() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-24">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            All Issues
-          </h1>
-          <p className="text-gray-600 text-lg">
-            Browse all issues reported by our community
-          </p>
-        </div>
+      <div className="text-center mb-12">
+        <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          All Issues
+        </h1>
+        <p className="text-gray-600 text-lg">
+          Browse all issues reported by our community
+        </p>
+      </div>
+      <div className="mb-8 max-w-xl mx-auto">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search issues"
+          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+        />
+      </div>
         
         {loading ? (
           <div className="text-center py-12">
@@ -95,10 +115,10 @@ export default function AllIssues() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {issues.map((issue, index) => (
+            {filtered.map((issue, index) => (
               <div
                 key={issue._id || index}
-                className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
               >
                 <div className="h-48 overflow-hidden">
                   <img

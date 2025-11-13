@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, MapPin, Calendar, User, DollarSign, Users, TrendingUp } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import ContributionModal from '../components/ContributionModal';
 import { db } from '../Firebase/firebase.config';
-import { collection, addDoc, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
 export default function IssueDetails() {
-  const location = useLocation();
+  const { id } = useParams();
   const navigate = useNavigate();
-  const issue = location.state?.issue;
+  const [issue, setIssue] = useState(null);
+  const [loadingIssue, setLoadingIssue] = useState(true);
   const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [contributions, setContributions] = useState([]);
@@ -24,18 +25,35 @@ export default function IssueDetails() {
     }
   }, [issue]);
 
-  // Fetch contributions for this issue
+  // ✅ Fetch issue details by id from local backend
   useEffect(() => {
-    if (!issue) return;
+    let isMounted = true;
+    const fetchIssue = async () => {
+      try {
+        if (!id) return;
+        const res = await fetch(`http://localhost:3000/issues/${id}`);
+        if (!res.ok) throw new Error('Failed to fetch issue');
+        const data = await res.json();
 
-    const issueId = issue.title; // Using title as identifier
+        // ✅ Handle both { result: {...} } and direct {...}
+        if (isMounted) setIssue(data.result || data);
+        console.log('Fetched issue:', data);
+      } catch (err) {
+        console.error('Error loading issue:', err);
+        toast.error('Failed to load issue details');
+      } finally {
+        if (isMounted) setLoadingIssue(false);
+      }
+    };
+    fetchIssue();
+    return () => { isMounted = false; };
+  }, [id]);
+
+  // ✅ Fetch contributions for this issue from Firebase
+  useEffect(() => {
+    if (!id) return;
     const contributionsRef = collection(db, 'contributions');
-    
-    // Try to fetch with orderBy, fallback to without if index doesn't exist
-    const q = query(
-      contributionsRef,
-      where('issueId', '==', issueId)
-    );
+    const q = query(contributionsRef, where('issueId', '==', id));
 
     const unsubscribe = onSnapshot(
       q,
@@ -44,7 +62,6 @@ export default function IssueDetails() {
           id: doc.id,
           ...doc.data()
         }));
-        // Sort by createdAt in descending order (newest first)
         contributionsData.sort((a, b) => {
           const dateA = new Date(a.createdAt || a.timestamp || 0);
           const dateB = new Date(b.createdAt || b.timestamp || 0);
@@ -56,36 +73,53 @@ export default function IssueDetails() {
       (error) => {
         console.error('Error fetching contributions:', error);
         setLoading(false);
-        // If there's an error, set empty array instead of crashing
         setContributions([]);
       }
     );
 
     return () => unsubscribe();
-  }, [issue]);
+  }, [id]);
 
-  // Calculate total collected amount
+  // ✅ Calculate total collected amount
   const totalCollected = contributions.reduce((sum, contribution) => sum + (contribution.amount || 0), 0);
   const targetAmount = issue?.amount || 0;
   const progressPercentage = targetAmount > 0 ? Math.min((totalCollected / targetAmount) * 100, 100) : 0;
 
-  // Handle contribution submission
+  // ✅ Handle contribution submission (API: POST /my-contribution)
   const handleContributionSubmit = async (contributionData) => {
     try {
-      await addDoc(collection(db, 'contributions'), {
-        ...contributionData,
-        category: issue?.category || '', // Include category from issue
-        userId: user?.uid || '',
-        userPhotoURL: user?.photoURL || '',
-        createdAt: new Date().toISOString()
+      const payload = {
+        email: user?.email || contributionData.email,
+        issueId: id,
+        issueTitle: issue?.title || '',
+        category: issue?.category || '',
+        amount: contributionData.amount,
+        date: contributionData.date || new Date().toISOString(),
+      };
+
+      const res = await fetch('http://localhost:3000/my-contribution', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
+      if (!res.ok) throw new Error('Failed to submit contribution');
+      const data = await res.json();
+      if (data?.success === false) throw new Error(data?.message || 'Failed to submit contribution');
       toast.success('Contribution submitted successfully!');
     } catch (error) {
       console.error('Error submitting contribution:', error);
-      toast.error('Failed to submit contribution. Please try again.');
+      toast.error(error.message || 'Failed to submit contribution. Please try again.');
       throw error;
     }
   };
+
+  if (loadingIssue) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-600">Loading issue details...</p>
+      </div>
+    );
+  }
 
   if (!issue) {
     return (
@@ -104,7 +138,7 @@ export default function IssueDetails() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <button
           onClick={() => navigate(-1)}
@@ -114,6 +148,7 @@ export default function IssueDetails() {
           <span>Back</span>
         </button>
 
+        {/* Issue Card */}
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           <div className="h-96 overflow-hidden">
             <img
@@ -137,9 +172,7 @@ export default function IssueDetails() {
               </span>
             </div>
 
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">
-              {issue.title}
-            </h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">{issue.title}</h1>
 
             <div className="flex items-center text-gray-600 mb-6 space-x-6">
               <div className="flex items-center space-x-2">
@@ -186,17 +219,24 @@ export default function IssueDetails() {
             </div>
 
             <div className="mt-8 pt-8 border-t border-gray-200">
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="bg-green-500 hover:bg-green-600 text-white px-8 py-3 rounded-lg font-medium transition-colors"
-              >
-                Pay Clean-Up Contribution
-              </button>
+              {progressPercentage >= 100 ? (
+                <div className="flex items-center justify-between">
+                  <span className="px-3 py-2 rounded-full bg-red-100 text-red-700 text-sm font-semibold">Fundraising Progress is closed</span>
+                  <span className="px-3 py-2 rounded-full bg-yellow-100 text-yellow-700 text-sm font-semibold">Work is pending</span>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="bg-green-500 hover:bg-green-600 text-white px-8 py-3 rounded-lg font-medium transition-colors"
+                >
+                  Pay Clean-Up Contribution
+                </button>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Contributors Table Section */}
+        {/* Contributors Section */}
         <div className="mt-8 bg-white rounded-lg shadow-lg overflow-hidden">
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center space-x-2 mb-2">
@@ -204,10 +244,9 @@ export default function IssueDetails() {
               <h2 className="text-2xl font-bold text-gray-900">Contributors</h2>
             </div>
             <p className="text-gray-600">
-              {contributions.length > 0 
+              {contributions.length > 0
                 ? `${contributions.length} contributor${contributions.length > 1 ? 's' : ''} have contributed to this issue`
-                : 'No contributions yet. Be the first to contribute!'
-              }
+                : 'No contributions yet. Be the first to contribute!'}
             </p>
           </div>
 

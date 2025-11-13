@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Menu, X, Leaf, LogIn, LogOut, User } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Menu, X, Leaf, LogIn, LogOut, User, Sun, Moon } from 'lucide-react';
+import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 
@@ -8,6 +8,7 @@ export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [isDark, setIsDark] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const profileDropdownRef = useRef(null);
@@ -19,6 +20,18 @@ export default function Navbar() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const initialDark = stored ? stored === 'dark' : prefersDark;
+    setIsDark(initialDark);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDark);
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  }, [isDark]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -68,7 +81,7 @@ export default function Navbar() {
   return (
     <nav 
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? 'bg-white/95 backdrop-blur-md shadow-lg' : 'bg-white'
+        isScrolled ? 'bg-white/95 dark:bg-gray-900/95 backdrop-blur-md shadow-lg' : 'bg-white dark:bg-gray-900'
       }`}
     >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -78,7 +91,7 @@ export default function Navbar() {
               <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
                 <Leaf className="w-6 h-6 text-white" />
               </div>
-              <span className="text-black text-xl font-bold">Ecofine</span>
+              <span className="text-black dark:text-white text-xl font-bold">Ecofine</span>
             </Link>
 
             {/* Desktop Navigation */}
@@ -87,7 +100,7 @@ export default function Navbar() {
                 <Link
                   key={link.name}
                   to={link.href}
-                  className="text-black hover:text-green-400 transition-colors duration-200 text-sm font-medium" 
+                  className="text-black dark:text-white hover:text-green-400 transition-colors duration-200 text-sm font-medium" 
                 >
                   {link.name}
                 </Link>
@@ -96,6 +109,13 @@ export default function Navbar() {
 
             {/* Desktop Right Side - Auth Buttons */}
             <div className="hidden lg:flex items-center space-x-4">
+              <button
+                onClick={() => setIsDark((prev) => !prev)}
+                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                aria-label="Toggle theme"
+              >
+                {isDark ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-gray-700" />}
+              </button>
               {user ? (
                 <div className="relative" ref={profileDropdownRef}>
                   <button
@@ -118,14 +138,14 @@ export default function Navbar() {
                   
                   {/* Profile Dropdown */}
                   {isProfileDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-50">
                       <div className="px-4 py-2 border-b border-gray-200">
-                        <p className="text-sm font-medium text-gray-900">{user.displayName || 'User'}</p>
-                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{user.displayName || 'User'}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-300 truncate">{user.email}</p>
                       </div>
                       <button
                         onClick={handleLogout}
-                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 transition-colors"
+                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center space-x-2 transition-colors"
                       >
                         <LogOut className="w-4 h-4" />
                         <span>Logout</span>
@@ -137,7 +157,7 @@ export default function Navbar() {
                 <div className="flex items-center space-x-4">
                   <Link
                     to="/login"
-                    className="text-black hover:text-green-400 transition-colors duration-200 text-sm font-medium"
+                    className="text-black dark:text-white hover:text-green-400 transition-colors duration-200 text-sm font-medium"
                   >
                     Login
                   </Link>
@@ -155,7 +175,7 @@ export default function Navbar() {
             {/* Mobile menu button */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden text-gray-900 p-2 hover:bg-gray-100 rounded transition-colors"
+              className="lg:hidden text-gray-900 dark:text-gray-100 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
             >
               {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -166,13 +186,13 @@ export default function Navbar() {
         <div className={`lg:hidden transition-all duration-300 overflow-hidden ${
           isMobileMenuOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0'
         }`}>
-          <div className="bg-white border-t border-gray-200">
+          <div className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
             <div className="px-4 py-6 space-y-4">
               {navLinks.map((link) => (
                 <Link
                   key={link.name}
                   to={link.href}
-                  className="block text-gray-900 hover:text-green-400 hover:bg-gray-50 px-4 py-2 rounded transition-colors"
+                  className="block text-gray-900 dark:text-gray-100 hover:text-green-400 hover:bg-gray-50 dark:hover:bg-gray-800 px-4 py-2 rounded transition-colors"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {link.name}
@@ -189,10 +209,17 @@ export default function Navbar() {
                       </div>
                     )}
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">{user.displayName || 'User'}</p>
-                      <p className="text-xs text-gray-500">{user.email}</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{user.displayName || 'User'}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-300">{user.email}</p>
                     </div>
                   </div>
+                  <button
+                    onClick={() => setIsDark((prev) => !prev)}
+                    className="w-full mt-2 px-4 py-2 rounded bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 flex items-center justify-center space-x-2"
+                  >
+                    {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                    <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
+                  </button>
                   <button
                     onClick={() => {
                       handleLogout();
@@ -208,7 +235,7 @@ export default function Navbar() {
                 <>
                   <Link
                     to="/login"
-                    className="block text-center text-gray-900 hover:text-green-400 hover:bg-gray-50 px-4 py-2 rounded transition-colors border-t border-gray-200 pt-4"
+                    className="block text-center text-gray-900 dark:text-gray-100 hover:text-green-400 hover:bg-gray-50 dark:hover:bg-gray-800 px-4 py-2 rounded transition-colors border-t border-gray-200 pt-4"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Login
@@ -221,6 +248,13 @@ export default function Navbar() {
                     <LogIn className="w-4 h-4" />
                     <span>Register</span>
                   </Link>
+                  <button
+                    onClick={() => setIsDark((prev) => !prev)}
+                    className="w-full mt-2 px-4 py-2 rounded bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 flex items-center justify-center space-x-2"
+                  >
+                    {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                    <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
+                  </button>
                 </>
               )}
             </div>

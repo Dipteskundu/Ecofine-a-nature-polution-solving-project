@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router';
 import MainLayout from '../MainLayout/MainLayout';
 import AddIssues from '../pages/AddIssues';
 import AllIssues from '../pages/AllIssues';
@@ -62,7 +62,7 @@ const Routes = createBrowserRouter([
                 )
             },
             {
-                path: '/issue-details',
+                path: '/issue-details/:id',
                 element: (
                     <ProtectedRoute>
                         <IssueDetails />

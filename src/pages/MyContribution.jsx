@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { DollarSign, Calendar, FileText, Sparkles } from 'lucide-react';
+import { DollarSign, Calendar, FileText, Sparkles, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { authFetch } from '../utils/apiClient';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function MyContribution() {
   const { user } = useAuth();
@@ -10,6 +12,40 @@ export default function MyContribution() {
   const [contributions, setContributions] = useState([]);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('date_desc');
+
+  const downloadReport = () => {
+    if (!user) {
+      toast.error('Login required');
+      return;
+    }
+    if (!contributions || contributions.length === 0) {
+      toast.error('No contributions to export');
+      return;
+    }
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text('EcoFine - Contribution Report', 14, 20);
+    doc.setFontSize(12);
+    doc.text(`Name: ${user.displayName || 'N/A'}`, 14, 30);
+    doc.text(`Email: ${user.email || 'N/A'}`, 14, 36);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 42);
+    const rows = contributions.map((c) => [
+      String(c.issueTitle || ''),
+      String(c.category || ''),
+      (Number(c.amount) || 0).toFixed(2),
+      c.date ? new Date(c.date).toLocaleDateString() : ''
+    ]);
+    autoTable(doc, {
+      startY: 48,
+      head: [['Issue', 'Category', 'Amount ($)', 'Date']],
+      body: rows
+    });
+    const total = contributions.reduce((s, c) => s + (Number(c.amount) || 0), 0);
+    const y = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY + 10 : 58;
+    doc.text(`Total: $${total.toFixed(2)}`, 14, y);
+    const filenameBase = (user.displayName || user.email || 'user').replace(/[^a-z0-9]+/gi, '_');
+    doc.save(`EcoFine_Contributions_${filenameBase}.pdf`);
+  };
 
   useEffect(() => {
     let active = true;
@@ -108,8 +144,14 @@ export default function MyContribution() {
               <div className="text-gray-700 dark:text-gray-300">
                 <span className="font-semibold">{contributions.length}</span> items
               </div>
-              <div className="text-green-600 font-bold">
-                ${contributions.reduce((s, c) => s + (Number(c.amount) || 0), 0).toFixed(2)} total
+              <div className="flex items-center gap-3">
+                <div className="text-green-600 font-bold">
+                  ${contributions.reduce((s, c) => s + (Number(c.amount) || 0), 0).toFixed(2)} total
+                </div>
+                <button onClick={downloadReport} className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium flex items-center space-x-2">
+                  <Download className="w-4 h-4" />
+                  <span>Download Report</span>
+                </button>
               </div>
             </div>
 

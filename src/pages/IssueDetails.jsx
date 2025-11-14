@@ -3,9 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, MapPin, Calendar, User, DollarSign, Users, TrendingUp } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import ContributionModal from '../components/ContributionModal';
-import { db } from '../Firebase/firebase.config';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+ 
 import toast from 'react-hot-toast';
+import { getAuth } from 'firebase/auth';
 
 export default function IssueDetails() {
   const { id } = useParams();
@@ -17,25 +17,35 @@ export default function IssueDetails() {
   const [contributions, setContributions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (issue) {
-      document.title = `${issue.title} | Issue Details | EcoFine`;
-    } else {
-      document.title = 'Issue Details | EcoFine';
+  const API_BASE = import.meta.env.VITE_API_URL || 'https://server-bzhwshzg7-diptes-projects.vercel.app';
+
+  // ✅ Helper function to include Bearer token for backend calls
+  const authFetch = async (url, options = {}) => {
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+    const headers = new Headers(options.headers || {});
+    if (currentUser) {
+      const token = await currentUser.getIdToken();
+      headers.set('Authorization', `Bearer ${token}`);
     }
+    headers.set('Content-Type', 'application/json');
+    return fetch(url, { ...options, headers });
+  };
+
+  // Update document title
+  useEffect(() => {
+    document.title = issue ? `${issue.title} | Issue Details | EcoFine` : 'Issue Details | EcoFine';
   }, [issue]);
 
-  // ✅ Fetch issue details by id from local backend
+  // ✅ Fetch issue details by ID from backend
   useEffect(() => {
     let isMounted = true;
     const fetchIssue = async () => {
       try {
         if (!id) return;
-        const res = await fetch(`http://localhost:3000/issues/${id}`);
+        const res = await authFetch(`${API_BASE}/issues/${id}`);
         if (!res.ok) throw new Error('Failed to fetch issue');
         const data = await res.json();
-
-        // ✅ Handle both { result: {...} } and direct {...}
         if (isMounted) setIssue(data.result || data);
         console.log('Fetched issue:', data);
       } catch (err) {
@@ -47,47 +57,57 @@ export default function IssueDetails() {
     };
     fetchIssue();
     return () => { isMounted = false; };
-  }, [id]);
+  }, [id, API_BASE]);
 
-  // ✅ Fetch contributions for this issue from Firebase
   useEffect(() => {
-    if (!id) return;
-    const contributionsRef = collection(db, 'contributions');
-    const q = query(contributionsRef, where('issueId', '==', id));
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const contributionsData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        contributionsData.sort((a, b) => {
-          const dateA = new Date(a.createdAt || a.timestamp || 0);
-          const dateB = new Date(b.createdAt || b.timestamp || 0);
-          return dateB - dateA;
-        });
-        setContributions(contributionsData);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Error fetching contributions:', error);
-        setLoading(false);
-        setContributions([]);
+    let active = true;
+    const load = async () => {
+      try {
+        if (!id) return;
+        const res = await authFetch(`${API_BASE}/my-contribution`);
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
+            toast.error('Please log in again');
+            navigate('/login');
+            return;
+          }
+          throw new Error('Failed to load contributions');
+        }
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (data.result || []);
+        const filtered = list.filter((c) => c.issueId === id);
+        filtered.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        if (active) {
+          setContributions(filtered);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error(err);
+        if (active) {
+          setLoading(false);
+          setContributions([]);
+        }
       }
-    );
+    };
+    load();
+    return () => { active = false; };
+  }, [id, navigate, API_BASE]);
 
-    return () => unsubscribe();
-  }, [id]);
-
-  // ✅ Calculate total collected amount
-  const totalCollected = contributions.reduce((sum, contribution) => sum + (contribution.amount || 0), 0);
+  // ✅ Calculate total collected
+  const totalCollected = contributions.reduce((sum, contribution) => sum + (Number(contribution.amount) || 0), 0);
   const targetAmount = issue?.amount || 0;
   const progressPercentage = targetAmount > 0 ? Math.min((totalCollected / targetAmount) * 100, 100) : 0;
+  const isGoalReached = progressPercentage >= 100 || totalCollected >= targetAmount;
 
-  // ✅ Handle contribution submission (API: POST /my-contribution)
+  // ✅ Handle contribution submission
   const handleContributionSubmit = async (contributionData) => {
     try {
+      if (!user) {
+        toast.error('Please log in to contribute');
+        navigate('/login');
+        return;
+      }
+
       const payload = {
         email: user?.email || contributionData.email,
         issueId: id,
@@ -97,14 +117,23 @@ export default function IssueDetails() {
         date: contributionData.date || new Date().toISOString(),
       };
 
-      const res = await fetch('http://localhost:3000/my-contribution', {
+      const res = await authFetch(`${API_BASE}/my-contribution`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error('Failed to submit contribution');
+
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          toast.error('Please log in again');
+          navigate('/login');
+          return;
+        }
+        throw new Error('Failed to submit contribution');
+      }
+
       const data = await res.json();
       if (data?.success === false) throw new Error(data?.message || 'Failed to submit contribution');
+
       toast.success('Contribution submitted successfully!');
     } catch (error) {
       console.error('Error submitting contribution:', error);
@@ -155,9 +184,7 @@ export default function IssueDetails() {
               src={issue.image}
               alt={issue.title}
               className="w-full h-full object-cover"
-              onError={(e) => {
-                e.target.src = 'https://via.placeholder.com/800x400?text=No+Image';
-              }}
+              onError={(e) => { e.target.src = 'https://via.placeholder.com/800x400?text=No+Image'; }}
             />
           </div>
 
@@ -195,6 +222,9 @@ export default function IssueDetails() {
                 <div className="flex items-center space-x-2">
                   <TrendingUp className="w-5 h-5 text-green-500" />
                   <span className="text-sm font-medium text-gray-700">Fundraising Progress</span>
+                  {isGoalReached && (
+                    <span className="ml-2 px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">Badget is Reached</span>
+                  )}
                 </div>
                 <span className="text-sm font-bold text-gray-900">
                   ${totalCollected.toFixed(2)} / ${targetAmount.toFixed(2)}
@@ -206,32 +236,22 @@ export default function IssueDetails() {
                   style={{ width: `${progressPercentage}%` }}
                 />
               </div>
-              <p className="text-xs text-gray-500">
-                {progressPercentage.toFixed(1)}% of goal reached
-              </p>
+              <p className="text-xs text-gray-500">{progressPercentage.toFixed(1)}% of goal reached</p>
             </div>
 
             <div className="prose max-w-none">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Description</h2>
-              <p className="text-gray-700 text-lg leading-relaxed">
-                {issue.description}
-              </p>
+              <p className="text-gray-700 text-lg leading-relaxed">{issue.description}</p>
             </div>
 
             <div className="mt-8 pt-8 border-t border-gray-200">
-              {progressPercentage >= 100 ? (
-                <div className="flex items-center justify-between">
-                  <span className="px-3 py-2 rounded-full bg-red-100 text-red-700 text-sm font-semibold">Fundraising Progress is closed</span>
-                  <span className="px-3 py-2 rounded-full bg-yellow-100 text-yellow-700 text-sm font-semibold">Work is pending</span>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setIsModalOpen(true)}
-                  className="bg-green-500 hover:bg-green-600 text-white px-8 py-3 rounded-lg font-medium transition-colors"
-                >
-                  Pay Clean-Up Contribution
-                </button>
-              )}
+              <button
+                onClick={() => setIsModalOpen(true)}
+                disabled={isGoalReached}
+                className={`px-8 py-3 rounded-lg font-medium transition-colors ${isGoalReached ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600 text-white'}`}
+              >
+                Pay Clean-Up Contribution
+              </button>
             </div>
           </div>
         </div>
@@ -260,15 +280,9 @@ export default function IssueDetails() {
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Contributor
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Amount
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contributor</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -293,19 +307,13 @@ export default function IssueDetails() {
                             )}
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
-                              {contribution.contributorName}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {contribution.email}
-                            </div>
+                            <div className="text-sm font-medium text-gray-900">{contribution.contributorName}</div>
+                            <div className="text-sm text-gray-500">{contribution.email}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm font-semibold text-green-600">
-                          ${contribution.amount?.toFixed(2) || '0.00'}
-                        </span>
+                        <span className="text-sm font-semibold text-green-600">${contribution.amount?.toFixed(2) || '0.00'}</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {contribution.date || new Date(contribution.createdAt).toLocaleDateString()}
@@ -315,12 +323,8 @@ export default function IssueDetails() {
                 </tbody>
                 <tfoot className="bg-gray-50">
                   <tr>
-                    <td className="px-6 py-4 text-sm font-bold text-gray-900" colSpan="2">
-                      Total Collected:
-                    </td>
-                    <td className="px-6 py-4 text-sm font-bold text-green-600">
-                      ${totalCollected.toFixed(2)}
-                    </td>
+                    <td className="px-6 py-4 text-sm font-bold text-gray-900" colSpan="2">Total Collected:</td>
+                    <td className="px-6 py-4 text-sm font-bold text-green-600">${totalCollected.toFixed(2)}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -345,4 +349,5 @@ export default function IssueDetails() {
     </div>
   );
 }
+
 

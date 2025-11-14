@@ -9,7 +9,7 @@ const Footer = () => {
         {/* Logo / Site Name */}
         <div className="flex items-center space-x-2">
           <Leaf className="text-green-600 w-6 h-6" />
-          <span className="text-xl font-semibold text-green-800 dark:text-green-300">GreenHub</span>
+          <span className="text-xl font-semibold text-green-800 dark:text-green-300">Ecofine</span>
         </div>
 
         {/* Short Description */}

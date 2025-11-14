@@ -3,12 +3,17 @@ import { Menu, X, Leaf, LogIn, LogOut, User, Sun, Moon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
+import { getAuth, updateProfile } from 'firebase/auth';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
-  const [isDark, setIsDark] = useState(false);
+  const { isDark, toggleTheme } = useTheme();
+  const [isUpdateOpen, setIsUpdateOpen] = useState(false);
+  const [profileName, setProfileName] = useState('');
+  const [profilePhoto, setProfilePhoto] = useState('');
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const profileDropdownRef = useRef(null);
@@ -20,18 +25,11 @@ export default function Navbar() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+  
 
   useEffect(() => {
-    const stored = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const initialDark = stored ? stored === 'dark' : prefersDark;
-    setIsDark(initialDark);
+    // no-op: Theme is handled globally by ThemeProvider
   }, []);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', isDark);
-    localStorage.setItem('theme', isDark ? 'dark' : 'light');
-  }, [isDark]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -79,11 +77,12 @@ export default function Navbar() {
   const navLinks = user ? authenticatedNavLinks : publicNavLinks;
 
   return (
-    <nav 
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? 'bg-white/95 dark:bg-gray-900/95 backdrop-blur-md shadow-lg' : 'bg-white dark:bg-gray-900'
-      }`}
-    >
+    <>
+      <nav
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/95 dark:bg-gray-900/95 backdrop-blur-md shadow-lg' : 'bg-white dark:bg-gray-900'
+          }`}
+      >
+        
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
@@ -100,7 +99,7 @@ export default function Navbar() {
                 <Link
                   key={link.name}
                   to={link.href}
-                  className="text-black dark:text-white hover:text-green-400 transition-colors duration-200 text-sm font-medium" 
+                  className="text-black dark:text-white hover:text-green-400 transition-colors duration-200 text-sm font-medium"
                 >
                   {link.name}
                 </Link>
@@ -110,7 +109,7 @@ export default function Navbar() {
             {/* Desktop Right Side - Auth Buttons */}
             <div className="hidden lg:flex items-center space-x-4">
               <button
-                onClick={() => setIsDark((prev) => !prev)}
+                onClick={toggleTheme}
                 className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 aria-label="Toggle theme"
               >
@@ -124,10 +123,11 @@ export default function Navbar() {
                     aria-label="Profile menu"
                   >
                     {user.photoURL ? (
-                      <img 
-                        src={user.photoURL} 
-                        alt={user.displayName || 'User'} 
-                        className="w-10 h-10 rounded-full border-2 border-green-500" 
+                      <img
+                        src={user.photoURL}
+                        alt={user.displayName || 'User'}
+                        className="w-10 h-10 rounded-full border-2 border-green-500"
+                        onError={(e) => { e.target.src = 'https://via.placeholder.com/40x40?text=User'; }}
                       />
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center border-2 border-green-600">
@@ -135,7 +135,7 @@ export default function Navbar() {
                       </div>
                     )}
                   </button>
-                  
+
                   {/* Profile Dropdown */}
                   {isProfileDropdownOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-50">
@@ -143,6 +143,13 @@ export default function Navbar() {
                         <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{user.displayName || 'User'}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-300 truncate">{user.email}</p>
                       </div>
+                      <button
+                        onClick={() => { setProfileName(user.displayName || ''); setProfilePhoto(user.photoURL || ''); setIsUpdateOpen(true); setIsProfileDropdownOpen(false); }}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-2 transition-colors"
+                      >
+                        <User className="w-4 h-4" />
+                        <span>Update Profile</span>
+                      </button>
                       <button
                         onClick={handleLogout}
                         className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center space-x-2 transition-colors"
@@ -183,9 +190,8 @@ export default function Navbar() {
         </div>
 
         {/* Mobile Menu */}
-        <div className={`lg:hidden transition-all duration-300 overflow-hidden ${
-          isMobileMenuOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0'
-        }`}>
+        <div className={`lg:hidden transition-all duration-300 overflow-hidden ${isMobileMenuOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0'
+          }`}>
           <div className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
             <div className="px-4 py-6 space-y-4">
               {navLinks.map((link) => (
@@ -214,7 +220,7 @@ export default function Navbar() {
                     </div>
                   </div>
                   <button
-                    onClick={() => setIsDark((prev) => !prev)}
+                    onClick={toggleTheme}
                     className="w-full mt-2 px-4 py-2 rounded bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 flex items-center justify-center space-x-2"
                   >
                     {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -249,7 +255,7 @@ export default function Navbar() {
                     <span>Register</span>
                   </Link>
                   <button
-                    onClick={() => setIsDark((prev) => !prev)}
+                    onClick={toggleTheme}
                     className="w-full mt-2 px-4 py-2 rounded bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 flex items-center justify-center space-x-2"
                   >
                     {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -261,5 +267,51 @@ export default function Navbar() {
           </div>
         </div>
       </nav>
+      {isUpdateOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Update Profile</h3>
+            <div className="space-y-4">
+              <input
+                value={profileName}
+                onChange={(e) => setProfileName(e.target.value)}
+                placeholder="Display Name"
+                className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+              />
+              <input
+                value={profilePhoto}
+                onChange={(e) => setProfilePhoto(e.target.value)}
+                placeholder="Photo URL"
+                className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+              />
+              <div className="flex items-center justify-end space-x-2">
+                <button
+                  onClick={() => setIsUpdateOpen(false)}
+                  className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      const auth = getAuth();
+                      if (!auth.currentUser) return;
+                      await updateProfile(auth.currentUser, { displayName: profileName || undefined, photoURL: profilePhoto || undefined });
+                      toast.success('Profile updated');
+                      setIsUpdateOpen(false);
+                    } catch {
+                      toast.error('Failed to update profile');
+                    }
+                  }}
+                  className="px-4 py-2 rounded bg-green-500 hover:bg-green-600 text-white"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

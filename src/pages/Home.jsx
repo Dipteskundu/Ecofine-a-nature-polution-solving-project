@@ -8,7 +8,6 @@ import toast from 'react-hot-toast';
 export default function Home() {
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [sortBy, setSortBy] = useState('newest');
   const [currentSlide, setCurrentSlide] = useState(0);
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -71,7 +70,7 @@ export default function Home() {
     const fetchLatestIssues = async () => {
       setLoading(true);
       try {
-        const res = await fetch('http://localhost:3000/issues');
+        const res = await fetch('https://server-bzhwshzg7-diptes-projects.vercel.app/issues');
         if (!res.ok) {
           throw new Error(`Failed to fetch issues: ${res.status}`);
         }
@@ -118,23 +117,6 @@ export default function Home() {
           }
         }
       });
-    }
-  };
-
-  const getSortedIssues = () => {
-    const arr = [...issues];
-    switch (sortBy) {
-      case 'oldest':
-        return arr.sort((a, b) => new Date(a?.date || 0) - new Date(b?.date || 0));
-      case 'amount_high':
-        return arr.sort((a, b) => (b?.amount || 0) - (a?.amount || 0));
-      case 'amount_low':
-        return arr.sort((a, b) => (a?.amount || 0) - (b?.amount || 0));
-      case 'category_az':
-        return arr.sort((a, b) => (a?.category || '').localeCompare(b?.category || ''));
-      case 'newest':
-      default:
-        return arr.sort((a, b) => new Date(b?.date || 0) - new Date(a?.date || 0));
     }
   };
 
@@ -286,19 +268,6 @@ export default function Home() {
               Latest issues reported by our community
             </p>
           </div>
-          <div className="mb-6 flex justify-end">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
-            >
-              <option value="newest">Sort by: Newest</option>
-              <option value="oldest">Sort by: Oldest</option>
-              <option value="amount_high">Amount: High to Low</option>
-              <option value="amount_low">Amount: Low to High</option>
-              <option value="category_az">Category: A → Z</option>
-            </select>
-          </div>
           {loading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>
@@ -310,8 +279,8 @@ export default function Home() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {getSortedIssues().map((issue, index) => (
-                <Motion.div
+              {issues.map((issue, index) => (
+              <Motion.div
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}

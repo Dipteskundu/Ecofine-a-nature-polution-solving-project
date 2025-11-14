@@ -8,6 +8,7 @@ export default function AllIssues() {
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('date_desc');
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -15,22 +16,12 @@ export default function AllIssues() {
     document.title = 'All Issues | EcoFine';
   }, []);
 
-  const filtered = issues.filter((i) => {
-    const q = search.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      (i.title || '').toLowerCase().includes(q) ||
-      (i.category || '').toLowerCase().includes(q) ||
-      (i.location || '').toLowerCase().includes(q)
-    );
-  });
-
   useEffect(() => {
     // Fetch issues from server API
     const fetchIssues = async () => {
       setLoading(true);
       try {
-        const res = await fetch('http://localhost:3000/issues');
+        const res = await fetch('https://server-bzhwshzg7-diptes-projects.vercel.app/issues');
         if (!res.ok) {
           throw new Error(`Failed to fetch issues: ${res.status}`);
         }
@@ -84,38 +75,65 @@ export default function AllIssues() {
     return categoryMap[category] || 'bg-gray-500';
   };
 
+  const filteredIssues = issues
+    .filter((issue) => {
+      const q = search.trim().toLowerCase();
+      if (!q) return true;
+      return [issue.title, issue.category, issue.location, issue.description]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q));
+    })
+    .sort((a, b) => {
+      if (sortBy === 'date_desc') return new Date(b?.date || 0) - new Date(a?.date || 0);
+      if (sortBy === 'date_asc') return new Date(a?.date || 0) - new Date(b?.date || 0);
+      if (sortBy === 'title_asc') return String(a.title || '').localeCompare(String(b.title || ''));
+      if (sortBy === 'title_desc') return String(b.title || '').localeCompare(String(a.title || ''));
+      return 0;
+    });
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
-          All Issues
-        </h1>
-        <p className="text-gray-600 text-lg">
-          Browse all issues reported by our community
-        </p>
-      </div>
-      <div className="mb-8 max-w-xl mx-auto">
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search issues"
-          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-        />
-      </div>
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            All Issues
+          </h1>
+          <p className="text-gray-600 text-lg">
+            Browse all issues reported by our community
+          </p>
+        </div>
+
+        <div className="mb-6 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search issues"
+            className="w-full sm:w-2/3 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+          />
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="w-full sm:w-1/3 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+          >
+            <option value="date_desc">Sort by: Newest</option>
+            <option value="date_asc">Sort by: Oldest</option>
+            <option value="title_asc">Title A→Z</option>
+            <option value="title_desc">Title Z→A</option>
+          </select>
+        </div>
         
         {loading ? (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading issues...</p>
           </div>
-        ) : issues.length === 0 ? (
+        ) : filteredIssues.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">No issues found.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filtered.map((issue, index) => (
+            {filteredIssues.map((issue, index) => (
               <div
                 key={issue._id || index}
                 className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow"

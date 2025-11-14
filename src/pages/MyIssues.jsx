@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { db } from '../Firebase/firebase.config';
+import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { Edit, Trash2, Eye, Plus } from 'lucide-react';
 import UpdateIssueModal from '../components/UpdateIssueModal';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
@@ -9,6 +11,8 @@ import toast from 'react-hot-toast';
 export default function MyIssues() {
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('date_desc');
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedIssue, setSelectedIssue] = useState(null);
@@ -19,32 +23,119 @@ export default function MyIssues() {
     document.title = 'My Issues | EcoFine';
   }, []);
 
+  // Fetch issues from Firestore with fallback to JSON
   useEffect(() => {
     if (!user) {
       setLoading(false);
       return;
     }
-    let active = true;
-    const fetchIssues = async () => {
+
+    let isMounted = true;
+    let unsubscribe = null;
+    let timeoutId = null;
+
+    // Fallback to JSON file
+    const loadFromJSON = async () => {
       try {
-        const res = await fetch('http://localhost:3000/issues');
-        const data = await res.json();
-        const list = Array.isArray(data) ? data : (data.result || []);
-        const userIssues = list.filter((i) => (i.email && i.email === user.email) || (i.userId && i.userId === user.uid));
-        userIssues.sort((a, b) => {
-          const dateA = new Date(a.date || a.createdAt || 0);
-          const dateB = new Date(b.date || b.createdAt || 0);
+        const response = await fetch('/issues.json');
+        const data = await response.json();
+        // Filter by user email
+          const userIssues = data.filter(issue => issue.email === user.email);
+        // Add mock IDs for JSON data
+        const issuesWithIds = userIssues.map((issue, index) => ({
+          id: `json-${index}-${Date.now()}`,
+          ...issue,
+          status: issue.status || 'ongoing'
+        }));
+          // Sort by date (newest first)
+        issuesWithIds.sort((a, b) => {
+          const dateA = new Date(a.date || 0);
+          const dateB = new Date(b.date || 0);
           return dateB - dateA;
         });
-        if (active) setIssues(userIssues.map((i) => ({ ...i, id: i._id || i.id })));
-      } catch (err) {
-        console.error(err);
-      } finally {
-        if (active) setLoading(false);
+        if (isMounted) {
+          setIssues(issuesWithIds);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Error loading from JSON:', error);
+        if (isMounted) {
+          setLoading(false);
+          setIssues([]);
+        }
       }
     };
-    fetchIssues();
-    return () => { active = false; };
+
+    try {
+      // Try Firestore first
+      const issuesRef = collection(db, 'issues');
+      const q = query(issuesRef, where('email', '==', user.email));
+
+      let hasReceivedData = false;
+
+      // Set timeout to prevent infinite loading (fallback to JSON after 3 seconds)
+      timeoutId = setTimeout(() => {
+        if (!hasReceivedData && isMounted) {
+          console.log('Firestore timeout, loading from JSON');
+          if (unsubscribe) unsubscribe();
+          loadFromJSON();
+        }
+      }, 3000);
+
+      unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          hasReceivedData = true;
+          if (timeoutId) clearTimeout(timeoutId);
+          
+          if (!isMounted) return;
+          
+          const issuesData = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          
+          // If Firestore has data, use it
+          if (issuesData.length > 0) {
+            issuesData.sort((a, b) => {
+              const dateA = new Date(a.date || a.createdAt || 0);
+              const dateB = new Date(b.date || b.createdAt || 0);
+              return dateB - dateA;
+            });
+            setIssues(issuesData);
+            setLoading(false);
+          } else {
+            // If Firestore is empty, try JSON fallback for demo data
+            // This helps users see the page working even if they haven't created issues yet
+            if (isMounted) {
+              loadFromJSON();
+            }
+          }
+        },
+        (error) => {
+          hasReceivedData = true;
+          if (timeoutId) clearTimeout(timeoutId);
+          
+          console.error('Firestore error:', error);
+          // On error, try JSON fallback
+          if (isMounted) {
+            loadFromJSON();
+          }
+        }
+      );
+    } catch (error) {
+      if (timeoutId) clearTimeout(timeoutId);
+      console.error('Error setting up Firestore listener:', error);
+      if (isMounted) {
+        loadFromJSON();
+      }
+    }
+
+    return () => {
+      isMounted = false;
+      if (unsubscribe) unsubscribe();
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [user]);
 
   const handleUpdate = (issue) => {
@@ -59,15 +150,25 @@ export default function MyIssues() {
 
   const handleUpdateSubmit = async (updatedData) => {
     try {
-      const id = selectedIssue._id || selectedIssue.id;
-      const res = await fetch(`http://localhost:3000/issues/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...updatedData, updatedAt: new Date().toISOString() })
-      });
-      if (!res.ok) throw new Error('Failed to update issue');
-      setIssues((prev) => prev.map((issue) => (issue.id === id ? { ...issue, ...updatedData } : issue)));
-      toast.success('Issue updated successfully!');
+      // Check if it's a Firestore document (starts with firestore ID pattern) or JSON data
+      if (selectedIssue.id && !selectedIssue.id.startsWith('json-')) {
+        const issueRef = doc(db, 'issues', selectedIssue.id);
+        await updateDoc(issueRef, {
+          ...updatedData,
+          updatedAt: new Date().toISOString()
+        });
+        toast.success('Issue updated successfully!');
+      } else {
+        // For JSON data, just update local state
+        setIssues(prevIssues => 
+          prevIssues.map(issue => 
+            issue.id === selectedIssue.id 
+              ? { ...issue, ...updatedData }
+              : issue
+          )
+        );
+        toast.success('Issue updated successfully! (Note: JSON data changes are temporary)');
+      }
       setUpdateModalOpen(false);
       setSelectedIssue(null);
     } catch (error) {
@@ -79,11 +180,18 @@ export default function MyIssues() {
 
   const handleDeleteConfirm = async () => {
     try {
-      const id = selectedIssue._id || selectedIssue.id;
-      const res = await fetch(`http://localhost:3000/issues/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete issue');
-      setIssues((prev) => prev.filter((issue) => issue.id !== id));
-      toast.success('Issue deleted successfully!');
+      // Check if it's a Firestore document or JSON data
+      if (selectedIssue.id && !selectedIssue.id.startsWith('json-')) {
+        const issueRef = doc(db, 'issues', selectedIssue.id);
+        await deleteDoc(issueRef);
+        toast.success('Issue deleted successfully!');
+      } else {
+        // For JSON data, just update local state
+        setIssues(prevIssues => 
+          prevIssues.filter(issue => issue.id !== selectedIssue.id)
+        );
+        toast.success('Issue deleted successfully! (Note: JSON data changes are temporary)');
+      }
       setDeleteModalOpen(false);
       setSelectedIssue(null);
     } catch (error) {
@@ -133,6 +241,26 @@ export default function MyIssues() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading your issues...</p>
+        </div>
+        <div className="mb-6 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search my issues"
+            className="w-full sm:w-2/3 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+          />
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="w-full sm:w-1/3 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+          >
+            <option value="date_desc">Sort by: Newest</option>
+            <option value="date_asc">Sort by: Oldest</option>
+            <option value="amount_desc">Amount High→Low</option>
+            <option value="amount_asc">Amount Low→High</option>
+            <option value="title_asc">Title A→Z</option>
+            <option value="title_desc">Title Z→A</option>
+          </select>
         </div>
       </div>
     );
@@ -194,7 +322,24 @@ export default function MyIssues() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {issues.map((issue) => (
+                  {issues
+                    .filter((issue) => {
+                      const q = search.trim().toLowerCase();
+                      if (!q) return true;
+                      return [issue.title, issue.category, issue.location, issue.description]
+                        .filter(Boolean)
+                        .some((v) => String(v).toLowerCase().includes(q));
+                    })
+                    .sort((a, b) => {
+                      if (sortBy === 'date_desc') return new Date(b?.date || b?.createdAt || 0) - new Date(a?.date || a?.createdAt || 0);
+                      if (sortBy === 'date_asc') return new Date(a?.date || a?.createdAt || 0) - new Date(b?.date || b?.createdAt || 0);
+                      if (sortBy === 'amount_desc') return (Number(b.amount) || 0) - (Number(a.amount) || 0);
+                      if (sortBy === 'amount_asc') return (Number(a.amount) || 0) - (Number(b.amount) || 0);
+                      if (sortBy === 'title_asc') return String(a.title || '').localeCompare(String(b.title || ''));
+                      if (sortBy === 'title_desc') return String(b.title || '').localeCompare(String(a.title || ''));
+                      return 0;
+                    })
+                    .map((issue) => (
                     <tr key={issue.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <div className="flex items-center">

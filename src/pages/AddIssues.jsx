@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { getAuth } from "firebase/auth";
+ 
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router";
 import { useAuth } from "../hooks/useAuth";
@@ -57,8 +57,7 @@ const AddIssues = () => {
 
     setLoading(true);
     try {
-      const auth = getAuth();
-      const token = await auth.currentUser.getIdToken();
+      const token = await user.getIdToken();
 
       const payload = {
         ...issue,
@@ -69,7 +68,8 @@ const AddIssues = () => {
         status: issue.status || 'ongoing'
       };
 
-      const res = await fetch('http://localhost:3000/issues', {
+      const API_BASE = import.meta.env.VITE_API_URL || 'https://server-bzhwshzg7-diptes-projects.vercel.app';
+      const res = await fetch(`${API_BASE}/issues`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -79,6 +79,11 @@ const AddIssues = () => {
       });
 
       if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          toast.error('Please log in again');
+          navigate('/login');
+          return;
+        }
         throw new Error(`Failed to add issue: ${res.status}`);
       }
 

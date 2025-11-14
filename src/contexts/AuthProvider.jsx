@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  onAuthStateChanged, 
-  signInWithEmailAndPassword, 
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
@@ -19,6 +19,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      console.log(currentUser);
       setLoading(false);
     });
 
@@ -62,6 +63,11 @@ export const AuthProvider = ({ children }) => {
     return sendPasswordResetEmail(auth, email);
   };
 
+  const getAccessToken = async (forceRefresh = false) => {
+    if (!user) return null;
+    return user.getIdToken(forceRefresh);
+  };
+
   const value = {
     user,
     loading,
@@ -69,7 +75,8 @@ export const AuthProvider = ({ children }) => {
     register,
     googleLogin,
     logout,
-    resetPassword
+    resetPassword,
+    getAccessToken
   };
 
   return (

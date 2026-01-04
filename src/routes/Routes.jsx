@@ -9,15 +9,28 @@ import IssueDetails from '../pages/IssueDetails';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
 import ForgotPassword from '../pages/ForgotPassword';
-import NotFound from '../pages/NotFound';
+import AdminHub from '../pages/AdminHub';
+import AdminRoute from '../components/AdminRoute';
 import ProtectedRoute from '../components/ProtectedRoute';
+import NotFound from '../pages/NotFound';
 import About from '../pages/About';
+import ContactUs from '../pages/ContactUs';
+import HelpFAQ from '../pages/HelpFAQ';
+import PrivacyPolicy from '../pages/PrivacyPolicy';
+import Services from '../pages/Services';
+import Blog from '../pages/Blog';
+import BlogPost from '../pages/BlogPost';
+import BlogCategory from '../pages/BlogCategory';
+import ServicesReporting from '../pages/ServicesReporting';
+import ServicesAnalytics from '../pages/ServicesAnalytics';
+import ServicesPartnerships from '../pages/ServicesPartnerships';
+import Profile from '../pages/Profile';
 
 const Routes = createBrowserRouter([
     {
         path: '/',
         element: <MainLayout />,
-        children:[
+        children: [
             {
                 index: true,
                 element: <Home />
@@ -68,9 +81,61 @@ const Routes = createBrowserRouter([
             },
             {
                 path: '/issue-details/:id',
+                element: <IssueDetails />
+            },
+            {
+                path: '/admin-hub',
+                element: (
+                    <AdminRoute>
+                        <AdminHub />
+                    </AdminRoute>
+                )
+            },
+            {
+                path: '/contact',
+                element: <ContactUs />
+            },
+            {
+                path: '/faq',
+                element: <HelpFAQ />
+            },
+            {
+                path: '/privacy',
+                element: <PrivacyPolicy />
+            },
+            {
+                path: '/services',
+                element: <Services />
+            },
+            {
+                path: '/services/reporting',
+                element: <ServicesReporting />
+            },
+            {
+                path: '/services/analytics',
+                element: <ServicesAnalytics />
+            },
+            {
+                path: '/services/partnerships',
+                element: <ServicesPartnerships />
+            },
+            {
+                path: '/blog',
+                element: <Blog />
+            },
+            {
+                path: '/blog/category/:slug',
+                element: <BlogCategory />
+            },
+            {
+                path: '/blog/:id',
+                element: <BlogPost />
+            },
+            {
+                path: '/profile',
                 element: (
                     <ProtectedRoute>
-                        <IssueDetails />
+                        <Profile />
                     </ProtectedRoute>
                 )
             },
@@ -80,6 +145,6 @@ const Routes = createBrowserRouter([
             }
         ]
     }
-])
+]);
 
 export default Routes;

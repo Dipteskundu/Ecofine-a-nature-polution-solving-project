@@ -1,48 +1,61 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Home, ArrowLeft, Ghost } from 'lucide-react';
+import { motion as Motion } from 'framer-motion';
+import Button from '../components/ui/Button';
 
 export default function NotFound() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    document.title = '404 - Page Not Found | EcoFine';
+    document.title = '404 - Missing Planet | EcoFine';
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center px-4">
-      <div className="text-center max-w-2xl">
-        <div className="mb-8">
-          <div className="inline-flex items-center justify-center w-32 h-32 bg-red-100 rounded-full mb-6">
-            <AlertCircle className="w-16 h-16 text-red-600" />
-          </div>
-          <h1 className="text-9xl font-bold text-gray-800 mb-4">404</h1>
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            Page Not Found
-          </h2>
-          <p className="text-lg text-gray-600 mb-8">
-            Oops! The page you're looking for doesn't exist. It might have been moved, deleted, or you entered the wrong URL.
-          </p>
-        </div>
+    <div className="min-h-screen bg-[var(--bg-page)] flex items-center justify-center px-6 relative overflow-hidden theme-transition">
+      {/* Background Decor */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-green-500/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2"></div>
+      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/2"></div>
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center justify-center space-x-2 bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span>Go Back</span>
-          </button>
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center justify-center space-x-2 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-          >
-            <Home className="w-5 h-5" />
-            <span>Go to Home</span>
-          </button>
-        </div>
+      <div className="text-center max-w-2xl relative z-10">
+        <Motion.div
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <div className="inline-flex items-center justify-center w-24 h-24 bg-[var(--bg-surface)] rounded-[2rem] mb-12 shadow-sm">
+            <Ghost className="w-12 h-12 text-[var(--text-muted)]" />
+          </div>
+
+          <p className="text-xs font-black text-green-600 uppercase tracking-[0.4em] mb-4">Error Code 404</p>
+          <h1 className="text-6xl md:text-8xl font-black text-[var(--text-primary)] mb-8 tracking-tighter leading-none">
+            Lost in the <span className="text-[var(--text-muted)]">Void.</span>
+          </h1>
+
+          <p className="text-xl text-gray-500 font-medium leading-relaxed mb-12 max-w-lg mx-auto italic">
+            "The initiative you're searching for hasn't been filed yet, or the environmental report was relocated to a different sector."
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button
+              variant="outline"
+              onClick={() => navigate(-1)}
+              className="px-10 py-5 rounded-2xl font-black text-lg border-[var(--border-color)]"
+              icon={ArrowLeft}
+            >
+              Revert Path
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => navigate('/')}
+              className="px-10 py-5 rounded-2xl font-black text-lg shadow-xl shadow-green-500/20"
+              icon={Home}
+            >
+              EcoFine Core
+            </Button>
+          </div>
+        </Motion.div>
       </div>
     </div>
   );
 }
-

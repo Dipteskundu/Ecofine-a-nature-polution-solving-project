@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, DollarSign, User, Mail, Phone, MapPin, Calendar, FileText } from 'lucide-react';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
+import { X, DollarSign, User, Mail, Phone, MapPin, Calendar, FileText, AlignLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
+import Button from './ui/Button';
+import Input from './ui/Input';
 
 export default function ContributionModal({ isOpen, onClose, issue, onSubmit, user }) {
   const getInitialFormData = () => ({
@@ -10,10 +13,10 @@ export default function ContributionModal({ isOpen, onClose, issue, onSubmit, us
     email: user?.email || '',
     phone: '',
     address: '',
-    date: new Date().toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    date: new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     }),
     additionalInfo: ''
   });
@@ -21,7 +24,6 @@ export default function ContributionModal({ isOpen, onClose, issue, onSubmit, us
   const [formData, setFormData] = useState(getInitialFormData());
   const [loading, setLoading] = useState(false);
 
-  // Update form when modal opens or issue/user changes
   useEffect(() => {
     if (isOpen) {
       setFormData({
@@ -31,42 +33,21 @@ export default function ContributionModal({ isOpen, onClose, issue, onSubmit, us
         email: user?.email || '',
         phone: '',
         address: '',
-        date: new Date().toLocaleDateString('en-US', { 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
+        date: new Date().toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
         }),
         additionalInfo: ''
       });
     }
   }, [isOpen, issue?.title, user?.displayName, user?.email]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validation
+
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
-      toast.error('Please enter a valid contribution amount');
-      return;
-    }
-    if (!formData.contributorName || formData.contributorName.trim() === '') {
-      toast.error('Please enter your name');
-      return;
-    }
-    if (!formData.phone || formData.phone.trim() === '') {
-      toast.error('Please enter your phone number');
-      return;
-    }
-    if (!formData.address || formData.address.trim() === '') {
-      toast.error('Please enter your address');
+      toast.error('Enter valid amount');
       return;
     }
 
@@ -74,209 +55,142 @@ export default function ContributionModal({ isOpen, onClose, issue, onSubmit, us
     try {
       await onSubmit({
         ...formData,
-        issueId: issue?.title || issue?.id, // Using title as identifier since JSON doesn't have IDs
         amount: parseFloat(formData.amount)
       });
-      // Reset form
-      setFormData(getInitialFormData());
       onClose();
     } catch (error) {
-      console.error('Error submitting contribution:', error);
+      console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  if (!isOpen) return null;
-
-  const handleOverlayClick = (e) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
   return (
-    <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      onClick={handleOverlayClick}
-    >
-      <div 
-        className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-gray-900">Pay Clean-Up Contribution</h2>
-          <button
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 text-left">
+          <Motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          />
+
+          <Motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            className="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
           >
-            <X className="w-6 h-6" />
-          </button>
+            <div className="px-10 py-8 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10">
+              <div>
+                <h2 className="text-3xl font-black text-gray-900 tracking-tight">Support Resolution.</h2>
+                <p className="text-sm text-gray-500 font-bold uppercase tracking-widest mt-1">Direct community intervention</p>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-3 bg-gray-50 rounded-2xl text-gray-400 hover:text-red-500 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-10 overflow-y-auto space-y-8 custom-scrollbar">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Input
+                  label="Initiative"
+                  icon={FileText}
+                  value={formData.issueTitle}
+                  readOnly
+                  disabled
+                />
+                <Input
+                  label="Impact Amount ($)"
+                  icon={DollarSign}
+                  type="number"
+                  value={formData.amount}
+                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Input
+                  label="Contributor"
+                  icon={User}
+                  value={formData.contributorName}
+                  onChange={(e) => setFormData({ ...formData, contributorName: e.target.value })}
+                  placeholder="Full name"
+                  required
+                />
+                <Input
+                  label="Email"
+                  icon={Mail}
+                  value={formData.email}
+                  readOnly
+                  disabled
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Input
+                  label="Contact"
+                  icon={Phone}
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="Primary phone"
+                  required
+                />
+                <Input
+                  label="Transaction Date"
+                  icon={Calendar}
+                  value={formData.date}
+                  readOnly
+                  disabled
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-black text-gray-900 uppercase tracking-widest ml-1 flex items-center gap-2">
+                  <MapPin size={14} className="text-green-600" />
+                  Impact Address
+                </label>
+                <textarea
+                  className="w-full p-6 bg-gray-50 border-none rounded-3xl text-gray-900 font-medium focus:ring-2 focus:ring-green-500/20 min-h-[100px] transition-all"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  placeholder="Verified residential or service address..."
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-black text-gray-900 uppercase tracking-widest ml-1 flex items-center gap-2">
+                  <AlignLeft size={14} className="text-green-600" />
+                  Resolution Notes
+                </label>
+                <textarea
+                  className="w-full p-6 bg-gray-50 border-none rounded-3xl text-gray-900 font-medium focus:ring-2 focus:ring-green-500/20 min-h-[100px] transition-all text-sm"
+                  value={formData.additionalInfo}
+                  onChange={(e) => setFormData({ ...formData, additionalInfo: e.target.value })}
+                  placeholder="Add specific instructions or support details (Optional)..."
+                />
+              </div>
+
+              <div className="pt-6 border-t border-gray-100 flex flex-col md:flex-row gap-4">
+                <Button variant="outline" type="button" onClick={onClose} className="flex-1 py-4 font-black">
+                  Hold Transaction
+                </Button>
+                <Button variant="primary" type="submit" loading={loading} className="flex-1 py-4 font-black shadow-xl shadow-green-500/20">
+                  Confirm Impact
+                </Button>
+              </div>
+            </form>
+          </Motion.div>
         </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Issue Title - Read Only */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Issue Title
-            </label>
-            <div className="relative">
-              <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                value={formData.issueTitle}
-                readOnly
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
-              />
-            </div>
-          </div>
-
-          {/* Amount */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Amount <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="number"
-                name="amount"
-                value={formData.amount}
-                onChange={handleChange}
-                min="0"
-                step="0.01"
-                required
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
-                placeholder="Enter amount"
-              />
-            </div>
-          </div>
-
-          {/* Contributor Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Contributor Name <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                name="contributorName"
-                value={formData.contributorName}
-                onChange={handleChange}
-                required
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
-                placeholder="Enter your name"
-              />
-            </div>
-          </div>
-
-          {/* Email */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email
-            </label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                readOnly
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
-              />
-            </div>
-          </div>
-
-          {/* Phone Number */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Phone Number <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                required
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
-                placeholder="Enter your phone number"
-              />
-            </div>
-          </div>
-
-          {/* Address */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Address <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
-              <textarea
-                name="address"
-                value={formData.address}
-                onChange={handleChange}
-                required
-                rows="3"
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none resize-none"
-                placeholder="Enter your address"
-              />
-            </div>
-          </div>
-
-          {/* Date - Display Only */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Date
-            </label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                value={formData.date}
-                readOnly
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
-              />
-            </div>
-          </div>
-
-          {/* Additional Info */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Additional Info (Optional)
-            </label>
-            <textarea
-              name="additionalInfo"
-              value={formData.additionalInfo}
-              onChange={handleChange}
-              rows="4"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none resize-none"
-              placeholder="Any additional information (if needed)"
-            />
-          </div>
-
-          {/* Submit Button */}
-          <div className="flex space-x-4 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Submitting...' : 'Submit Contribution'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      )}
+    </AnimatePresence>
   );
 }
-

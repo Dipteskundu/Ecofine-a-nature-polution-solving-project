@@ -1,48 +1,57 @@
 import React, { useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider } from '../contexts/AuthProvider';
+import { AnimatePresence, motion } from 'framer-motion';
 import Navbar from '../components/Navbar/Navbar';
 import Footer from '../components/Footer/Footer';
 
 const MainLayout = () => {
+  const { pathname } = useLocation();
+
   useEffect(() => {
-    const stored = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const shouldDark = stored ? stored === 'dark' : prefersDark;
-    document.documentElement.classList.toggle('dark', shouldDark);
-  }, []);
+    window.scrollTo(0, 0);
+  }, [pathname]);
 
   return (
-    <AuthProvider>
-      <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-        <Navbar />
-        <Outlet />
-        <Footer></Footer>
-        <Toaster 
-          position="top-right"
-          toastOptions={{
+    <div className="min-h-screen theme-transition bg-[var(--bg-page)] text-[var(--text-primary)]">
+      <Navbar />
+      <div className="flex-grow">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={pathname}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            transition={{ duration: 0.25, ease: 'easeInOut' }}
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
+      </div>
+      <Footer />
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
             duration: 3000,
             style: {
-              background: '#363636',
-              color: '#fff',
+              background: '#10b981',
             },
-            success: {
-              duration: 3000,
-              style: {
-                background: '#10b981',
-              },
+          },
+          error: {
+            duration: 3000,
+            style: {
+              background: '#ef4444',
             },
-            error: {
-              duration: 3000,
-              style: {
-                background: '#ef4444',
-              },
-            },
-          }}
-        />
-      </div>
-    </AuthProvider>
+          },
+        }}
+      />
+    </div>
   );
 };
 

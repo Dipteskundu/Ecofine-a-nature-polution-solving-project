@@ -1,40 +1,70 @@
-# EcoFine — Community Cleanup Platform
+# EcoFine Client
 
-EcoFine is a community-driven web app that helps citizens report local environmental and infrastructure issues, collaborate on solutions, contribute resources, and track resolution progress transparently.
+## Description
+EcoFine is a modern environmental action platform designed to connect citizens with local authorities and NGOs to solve real-time environmental crises. It features a responsive, high-performance UI with dynamic interactions, educational content, and actionable reporting tools. The application uses a "Green Eco-Vibe" aesthetic to align with its mission.
 
-## Features
-- Report issues with category, location, description, images, budget, and date
-- Browse all issues with search and sort controls
-- View detailed issue pages, progress, and community contributions
-- Manage your issues (Firestore live updates with JSON fallback UX)
-- See your contributions, filter, and sort by date/amount
-- Secure authentication with Email/Password and Google
-- Protected routes that preserve intended navigation after login
-- Responsive UI with light/dark theme toggle (DaisyUI + Tailwind)
-- Animated interactions and polished design (Framer Motion)
-- Toast notifications for clear user feedback
-- About page with mission, values, stats, and CTAs
+## Live Project Link
+https://ecofine.netlify.app/
 
-## Tech Stack
-- React- 19
-- Vite- 7
-- Tailwind CSS- 4 + DaisyUI -5
-- React Router -7
-- Firebase (Auth, Firestore)
-- Framer Motion
-- Lucide React icons
-- React Hot Toast
-- jsPDF and jsPDF-AutoTable (for potential export features)
+## Technologies Used
+- **Frontend Framework:** React 19 (via Vite)
+- **Styling:** Tailwind CSS v4, DaisyUI
+- **Animations:** Framer Motion
+- **State Management & Routing:** React Router v7, React Hooks
+- **Authentication:** Firebase (Google & Email/Password)
+- **Data Fetching:** Axios
+- **Visualization:** Recharts
+- **Icons:** Lucide React
 
-## Environment Variables
-Create a `.env` file in the project root for environment configuration.
+## Core Features
+1.  **Citizen Reporting System:** Users can report environmental issues with locations and descriptions.
+2.  **Interactive Blog:** Educational content with category filtering ("Success Stories", "Guides") and search.
+3.  **Real-Time Analytics:** Visual dashboards for tracking impact metrics.
+4.  **Global Green Theme:** A unified, nature-inspired design system with dark mode support.
+5.  **Secure Authentication:** User and Admin login flows using Firebase.
+6.  **Responsive Design:** Fully mobile-optimized navigation and layouts.
 
-## Firebase Setup
-- Firebase Auth and Firestore are initialized in `src/Firebase/firebase.config.js`
-- Auth flows are wrapped by `AuthProvider` and consumed via `useAuth()`
-- Protected routes redirect unauthenticated users to `Login` and preserve the original destination
+## Dependencies
+- `react`, `react-dom`
+- `react-router-dom`
+- `tailwindcss`, `daisyui`
+- `framer-motion`
+- `axios`
+- `firebase`
+- `react-hot-toast`
+- `lucide-react`
+- `recharts`
+- `jspdf`
 
-## Theming
-- Theme toggle in `Navbar` supports light/dark
-- Tailwind `dark` class toggled at the document root
-- DaisyUI theme variables applied via `data-theme`
+## How to Run Locally
+
+### Prerequisites
+- Node.js (v18 or higher) installed.
+
+### Steps
+1.  **Clone the repository:**
+    ```bash
+    git clone <repository-url>
+    ```
+2.  **Navigate to the client directory:**
+    ```bash
+    cd assingment
+    ```
+3.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
+4.  **Configure Environment Variables:**
+    - Create a `.env` file in the `assingment` directory.
+    - Add your Firebase config keys (e.g., `VITE_apiKey=...`).
+5.  **Run the development server:**
+    ```bash
+    npm run dev
+    ```
+6.  **Open in Browser:**
+    - Visit `http://localhost:5173` (or the port shown in terminal).
+
+## Resources
+- [Vite Documentation](https://vitejs.dev/)
+- [Tailwind CSS Docs](https://tailwindcss.com/)
+- [React Router](https://reactrouter.com/)

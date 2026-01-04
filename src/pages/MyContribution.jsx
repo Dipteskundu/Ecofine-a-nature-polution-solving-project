@@ -1,14 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { DollarSign, Calendar, FileText, Sparkles, Download } from 'lucide-react';
+import useAxiosSecure from '../hooks/useAxiosSecure';
+import { DollarSign, Calendar, FileText, Sparkles, Download, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { authFetch } from '../utils/apiClient';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
+import Button from '../components/ui/Button';
+import Card from '../components/ui/Card';
+import EmptyState from '../components/ui/EmptyState';
+import Input from '../components/ui/Input';
+import Select from '../components/ui/Select';
 
 export default function MyContribution() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const axiosSecure = useAxiosSecure();
   const [contributions, setContributions] = useState([]);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('date_desc');
@@ -23,43 +30,52 @@ export default function MyContribution() {
       return;
     }
     const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text('EcoFine - Contribution Report', 14, 20);
-    doc.setFontSize(12);
-    doc.text(`Name: ${user.displayName || 'N/A'}`, 14, 30);
-    doc.text(`Email: ${user.email || 'N/A'}`, 14, 36);
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 42);
+    doc.setFontSize(22);
+    doc.setTextColor(16, 185, 129); // Emerald-500
+    doc.text('EcoFine Impact Report', 14, 25);
+
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Contributor: ${user.displayName || 'Community Member'}`, 14, 35);
+    doc.text(`Email: ${user.email}`, 14, 40);
+    doc.text(`Statement Date: ${new Date().toLocaleDateString()}`, 14, 45);
+
     const rows = contributions.map((c) => [
-      String(c.issueTitle || ''),
-      String(c.category || ''),
-      (Number(c.amount) || 0).toFixed(2),
-      c.date ? new Date(c.date).toLocaleDateString() : ''
+      c.issueTitle || 'N/A',
+      c.category || 'Environmental',
+      `$${(Number(c.amount) || 0).toFixed(2)}`,
+      c.date ? new Date(c.date).toLocaleDateString() : 'N/A'
     ]);
+
     autoTable(doc, {
-      startY: 48,
-      head: [['Issue', 'Category', 'Amount ($)', 'Date']],
-      body: rows
+      startY: 55,
+      head: [['Issue Impacted', 'Category', 'Amount Contribution', 'Date']],
+      body: rows,
+      theme: 'grid',
+      headStyles: { fillStyle: 'emerald', fillColor: [16, 185, 129] },
+      styles: { fontSize: 9, cellPadding: 5 }
     });
+
     const total = contributions.reduce((s, c) => s + (Number(c.amount) || 0), 0);
-    const y = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY + 10 : 58;
-    doc.text(`Total: $${total.toFixed(2)}`, 14, y);
+    const finalY = doc.lastAutoTable.finalY + 15;
+
+    doc.setFontSize(14);
+    doc.setTextColor(15, 23, 42);
+    doc.text(`Total Lifetime Impact: $${total.toFixed(2)}`, 14, finalY);
+
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text('Thank you for being part of the EcoFine resolution network.', 14, finalY + 10);
+
     const filenameBase = (user.displayName || user.email || 'user').replace(/[^a-z0-9]+/gi, '_');
-    doc.save(`EcoFine_Contributions_${filenameBase}.pdf`);
+    doc.save(`EcoFine_Impact_${filenameBase}.pdf`);
   };
 
   useEffect(() => {
     let active = true;
     const load = async () => {
       try {
-        const res = await authFetch('/my-contribution', {}, true);
-        if (!res.ok) {
-          if (res.status === 401 || res.status === 403) {
-            toast.error('Please log in');
-            return;
-          }
-          throw new Error('Failed to load contributions');
-        }
-        const data = await res.json();
+        const { data } = await axiosSecure.get('/my-contribution');
         const list = Array.isArray(data) ? data : (data.result || []);
         const mine = list.filter((c) => c.email === user?.email);
         mine.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
@@ -77,148 +93,143 @@ export default function MyContribution() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-24 flex items-center justify-center">
-        <p className="text-gray-600">Login required to view your contributions.</p>
+      <div className="min-h-screen bg-[var(--bg-page)] text-[var(--text-primary)] pt-32 px-6 theme-transition">
+        <EmptyState
+          title="Authentication Required"
+          message="Please log in to view your contribution history and impact metrics."
+          actionLabel="Login to Continue"
+          onAction={() => window.location.href = '/login'}
+        />
+      </div>
+    );
+  }
+
+  const filtered = contributions
+    .filter((c) => {
+      const q = search.trim().toLowerCase();
+      if (!q) return true;
+      return [c.issueTitle, c.category]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q));
+    })
+    .sort((a, b) => {
+      if (sortBy === 'date_desc') return new Date(b?.date || 0) - new Date(a?.date || 0);
+      if (sortBy === 'date_asc') return new Date(a?.date || 0) - new Date(b?.date || 0);
+      if (sortBy === 'amount_desc') return (Number(b.amount) || 0) - (Number(a.amount) || 0);
+      if (sortBy === 'amount_asc') return (Number(a.amount) || 0) - (Number(b.amount) || 0);
+      if (sortBy === 'title_asc') return String(a.issueTitle || '').localeCompare(String(b.issueTitle || ''));
+      if (sortBy === 'title_desc') return String(b.issueTitle || '').localeCompare(String(a.issueTitle || ''));
+      return 0;
+    });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[var(--bg-page)] pt-24 flex items-center justify-center theme-transition">
+        <div className="w-12 h-12 border-4 border-green-500/20 border-t-green-500 rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-24">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Banner Section */}
-        <div className="relative overflow-hidden rounded-2xl mb-10">
-          <div className="absolute inset-0 bg-gradient-to-r from-green-500/20 via-blue-500/20 to-emerald-500/20"></div>
-          <img
-            src="https://images.unsplash.com/photo-1495107334309-fcf20504a5ab?q=80&w=1600&auto=format&fit=crop"
-            alt="Community action"
-            className="w-full h-56 object-cover"
-            onError={(e) => { e.target.style.display = 'none'; }}
-          />
-          <div className="absolute inset-0 flex items-center">
-            <div className="px-8">
-              <div className="flex items-center space-x-3 mb-2 text-green-600">
-                <Sparkles className="w-5 h-5" />
-                <span className="text-sm font-semibold">Eco-Modernist</span>
+    <div className="min-h-screen bg-[var(--bg-page)] text-[var(--text-primary)] pt-32 pb-20 theme-transition">
+      <div className="max-w-7xl mx-auto px-6">
+
+        {/* Header Section */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 mb-16">
+          <div className="max-w-2xl">
+            <div className="flex items-center gap-2 text-xs font-black text-green-600 uppercase tracking-widest mb-4">
+              <Sparkles size={16} /> Individual Impact
+            </div>
+            <h1 className="text-4xl md:text-6xl font-black text-[var(--text-primary)] mb-4 tracking-tighter">Your Legacy.</h1>
+            <p className="text-lg text-[var(--text-secondary)] font-medium leading-relaxed">
+              Every contribution, no matter the size, fuels the resolution of environmental issues in your neighborhood.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="bg-[var(--bg-card)] p-6 rounded-[2rem] border border-[var(--border-color)] flex items-center gap-6 shadow-sm">
+              <div>
+                <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-1">Total Impact</p>
+                <p className="text-3xl font-black text-green-600">${filtered.reduce((s, c) => s + (Number(c.amount) || 0), 0).toFixed(2)}</p>
               </div>
-              <h1 className="text-4xl font-bold text-gray-900 dark:text-white">My Contributions</h1>
-              <p className="mt-2 text-gray-700 dark:text-gray-300">Only your own contributions are listed.</p>
+              <Button onClick={downloadReport} icon={Download} className="w-14 h-14 rounded-2xl p-0 flex items-center justify-center bg-[var(--bg-surface)] text-[var(--text-primary)] hover:bg-green-500 hover:text-white transition-all shadow-none">
+                <span className="sr-only">Download</span>
+              </Button>
             </div>
           </div>
         </div>
 
-        <div className="mb-6 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search contributions"
-            className="w-full sm:w-2/3 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-          />
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="w-full sm:w-1/3 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-          >
-            <option value="date_desc">Sort by: Newest</option>
-            <option value="date_asc">Sort by: Oldest</option>
-            <option value="amount_desc">Amount High→Low</option>
-            <option value="amount_asc">Amount Low→High</option>
-            <option value="title_asc">Title A→Z</option>
-            <option value="title_desc">Title Z→A</option>
-          </select>
+        {/* Filters */}
+        <div className="flex flex-col md:flex-row gap-4 items-center mb-10">
+          <div className="flex-1 w-full">
+            <Input
+              placeholder="Search by issue or category..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              icon={Search}
+              className="bg-[var(--bg-card)] border-none shadow-sm"
+            />
+          </div>
+          <div className="w-full md:w-64">
+            <Select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              icon={SlidersHorizontal}
+              options={[
+                { value: 'date_desc', label: 'Newest First' },
+                { value: 'date_asc', label: 'Oldest First' },
+                { value: 'amount_desc', label: 'Impact: High' },
+                { value: 'amount_asc', label: 'Impact: Low' },
+              ]}
+              className="bg-[var(--bg-card)] border-none shadow-sm"
+            />
+          </div>
         </div>
 
-        {/* Loading / Empty / Data Sections */}
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading contributions...</p>
-          </div>
-        ) : contributions.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 text-center">
-            <p className="text-gray-500">No contributions yet.</p>
+        {/* Content */}
+        {filtered.length === 0 ? (
+          <div className="bg-[var(--bg-card)] rounded-[3rem] p-20 border border-[var(--border-color)] shadow-sm">
+            <EmptyState
+              title="No records found"
+              message={search ? "We couldn't find any contributions matching your search." : "You haven't made any contributions yet. Start leading the change today."}
+              actionLabel={search ? "Clear Search" : "Explore Issues"}
+              onAction={() => search ? setSearch('') : window.location.href = '/all-issues'}
+              icon={FileText}
+            />
           </div>
         ) : (
-          <div>
-            <div className="mb-6 flex items-center justify-between">
-              <div className="text-gray-700 dark:text-gray-300">
-                <span className="font-semibold">{contributions.length}</span> items
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="text-green-600 font-bold">
-                  ${contributions.reduce((s, c) => s + (Number(c.amount) || 0), 0).toFixed(2)} total
-                </div>
-                <button onClick={downloadReport} className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium flex items-center space-x-2">
-                  <Download className="w-4 h-4" />
-                  <span>Download Report</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Contribution Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {contributions
-                .filter((c) => {
-                  const q = search.trim().toLowerCase();
-                  if (!q) return true;
-                  return [c.issueTitle, c.category]
-                    .filter(Boolean)
-                    .some((v) => String(v).toLowerCase().includes(q));
-                })
-                .sort((a, b) => {
-                  if (sortBy === 'date_desc') return new Date(b?.date || 0) - new Date(a?.date || 0);
-                  if (sortBy === 'date_asc') return new Date(a?.date || 0) - new Date(b?.date || 0);
-                  if (sortBy === 'amount_desc') return (Number(b.amount) || 0) - (Number(a.amount) || 0);
-                  if (sortBy === 'amount_asc') return (Number(a.amount) || 0) - (Number(b.amount) || 0);
-                  if (sortBy === 'title_asc') return String(a.issueTitle || '').localeCompare(String(b.issueTitle || ''));
-                  if (sortBy === 'title_desc') return String(b.issueTitle || '').localeCompare(String(a.issueTitle || ''));
-                  return 0;
-                })
-                .map((c, idx) => {
-                  const imageUrl =
-                    c.image ||
-                    c.imageUrl ||
-                    `https://source.unsplash.com/600x400/?${encodeURIComponent(c.issueTitle || 'nature')}`;
-                  return (
-                    <div
-                      key={c._id || idx}
-                      className="bg-white dark:bg-gray-800 rounded-xl shadow hover:shadow-lg transition overflow-hidden"
-                    >
-                      <div className="h-36 overflow-hidden">
-                        <img
-                          src={imageUrl}
-                          alt={c.issueTitle || 'Contribution'}
-                          className="w-full h-full object-cover"
-                          onError={(e) => { e.target.src = 'https://via.placeholder.com/600x400?text=Contribution'; }}
-                        />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filtered.map((c, idx) => (
+              <Motion.div
+                key={c._id || idx}
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ delay: idx * 0.04 }}
+              >
+                <Card className="p-0 border-none shadow-sm bg-[var(--bg-card)] overflow-hidden group">
+                  <div className="p-8">
+                    <div className="flex items-start justify-between mb-8">
+                      <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-green-600">
+                        <DollarSign size={24} />
                       </div>
-                      <div className="p-5">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center space-x-2 text-gray-500">
-                            <FileText className="w-4 h-4" />
-                            <span className="text-sm">{c.issueTitle}</span>
-                          </div>
-                          <span className="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
-                            {c.category}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2 text-green-600 font-semibold">
-                            <DollarSign className="w-4 h-4" />
-                            <span>${(Number(c.amount) || 0).toFixed(2)}</span>
-                          </div>
-                          <div className="flex items-center space-x-2 text-gray-500">
-                            <Calendar className="w-4 h-4" />
-                            <span className="text-sm">
-                              {c.date ? new Date(c.date).toLocaleDateString() : ''}
-                            </span>
-                          </div>
-                        </div>
+                      <span className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest italic">{c.category || 'Environmental'}</span>
+                    </div>
+
+                    <h3 className="text-xl font-black text-[var(--text-primary)] mb-3 line-clamp-1">{c.issueTitle || 'Direct Support'}</h3>
+                    <p className="text-sm text-[var(--text-secondary)] font-medium mb-8 leading-relaxed">Impact made toward cleaning and restoration of local infrastructure.</p>
+
+                    <div className="flex items-center justify-between pt-6 border-t border-[var(--border-color)]">
+                      <div className="flex items-center gap-2 text-xs font-black text-[var(--text-primary)] uppercase tracking-widest">
+                        <Calendar size={14} className="text-[var(--text-muted)]" />
+                        {new Date(c.date || c.createdAt).toLocaleDateString()}
+                      </div>
+                      <div className="text-2xl font-black text-green-600">
+                        ${(Number(c.amount) || 0).toFixed(2)}
                       </div>
                     </div>
-                  );
-                })}
-            </div>
+                  </div>
+                </Card>
+              </Motion.div>
+            ))}
           </div>
         )}
       </div>

@@ -1,56 +1,74 @@
 import React from "react";
-import { Leaf } from "lucide-react";
+import { Leaf, Github, Twitter, Linkedin, Heart } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Footer = () => {
   return (
-    <footer className="bg-green-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 py-10 mt-10">
-      <div className="max-w-6xl mx-auto px-4 grid md:grid-cols-3 gap-8">
-        
-        {/* Logo / Site Name */}
-        <div className="flex items-center space-x-2">
-          <Leaf className="text-green-600 w-6 h-6" />
-          <span className="text-xl font-semibold text-green-800 dark:text-green-300">Ecofine</span>
-        </div>
+    <footer className="bg-[var(--bg-page)] text-[var(--text-secondary)] py-16 mt-20 border-t border-[var(--border-color)] theme-transition">
+      <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12">
 
-        {/* Short Description */}
-        <div>
-          <p className="text-sm leading-relaxed">
-            Join us in creating cleaner neighborhoods and a greener planet.
-            GreenHub connects people for community cleanups and sustainability efforts.
+        {/* Brand Section */}
+        <div className="md:col-span-1">
+          <Link to="/" className="flex items-center space-x-2 mb-6 group">
+            <div className="p-2 bg-primary rounded-lg group-hover:rotate-12 transition-transform shadow-lg shadow-green-500/20">
+              <Leaf className="text-white w-5 h-5" />
+            </div>
+            <span className="text-2xl font-black text-[var(--text-primary)] tracking-tighter">EcoFine</span>
+          </Link>
+          <p className="text-sm leading-relaxed mb-6">
+            Empowering communities to report, resolve, and recover environmental issues. Built for a sustainable future.
           </p>
+          <div className="flex items-center gap-4">
+            <a href="#" className="p-2 bg-[var(--bg-card)] rounded-full hover:text-primary transition-colors border border-[var(--border-color)]"><Twitter size={18} /></a>
+            <a href="#" className="p-2 bg-[var(--bg-card)] rounded-full hover:text-primary transition-colors border border-[var(--border-color)]"><Github size={18} /></a>
+            <a href="#" className="p-2 bg-[var(--bg-card)] rounded-full hover:text-primary transition-colors border border-[var(--border-color)]"><Linkedin size={18} /></a>
+          </div>
         </div>
 
-        {/* Useful Links */}
+        {/* Quick Links */}
         <div>
-          <h3 className="text-green-800 dark:text-green-300 font-semibold mb-3">Useful Links</h3>
-          <ul className="space-y-2 text-sm">
-            <li>
-              <a href="#" className="hover:text-green-700 dark:hover:text-green-400 transition-colors">
-                Home
-              </a>
-            </li>
-            <li>
-              <a href="#" className="hover:text-green-700 dark:hover:text-green-400 transition-colors">
-                About
-              </a>
-            </li>
-            <li>
-              <a href="#" className="hover:text-green-700 dark:hover:text-green-400 transition-colors">
-                Contact
-              </a>
-            </li>
-            <li>
-              <a href="#" className="hover:text-green-700 dark:hover:text-green-400 transition-colors">
-                Report Issue
-              </a>
-            </li>
+          <h3 className="text-[var(--text-primary)] font-black mb-6 text-sm uppercase tracking-widest">Platform</h3>
+          <ul className="space-y-4 text-sm font-medium">
+            <li><Link to="/all-issues" className="hover:text-green-600 transition-colors">Explore Issues</Link></li>
+            <li><Link to="/services" className="hover:text-green-600 transition-colors">Platform Services</Link></li>
+            <li><Link to="/blog" className="hover:text-green-600 transition-colors">Action Blog</Link></li>
+            <li><Link to="/about" className="hover:text-green-600 transition-colors">Our Mission</Link></li>
           </ul>
+        </div>
+
+        {/* Help & Support */}
+        <div>
+          <h3 className="text-[var(--text-primary)] font-black mb-6 text-sm uppercase tracking-widest">Resources</h3>
+          <ul className="space-y-4 text-sm font-medium">
+            <li><Link to="/contact" className="hover:text-green-600 transition-colors">Support Center</Link></li>
+            <li><Link to="/faq" className="hover:text-green-600 transition-colors">Help & FAQ</Link></li>
+            <li><Link to="/privacy" className="hover:text-green-600 transition-colors">Privacy Policy</Link></li>
+            <li><Link to="/privacy#terms" className="hover:text-green-600 transition-colors">Terms of Use</Link></li>
+          </ul>
+        </div>
+
+        {/* Impact Message */}
+        <div className="bg-primary/5 p-8 pb-0 rounded-[30px] border border-primary/20">
+          <h4 className="text-primary font-black mb-3 flex items-center gap-2">
+            <Heart size={16} className="fill-primary text-primary" />
+            Support Action
+          </h4>
+          <p className="text-xs leading-relaxed text-[var(--text-secondary)] font-medium">
+            Every report counts. Join 4,000+ citizens making the world a cleaner place today.
+          </p>
+          <Link to="/addIssues" className="mt-4 block text-center bg-primary text-white py-2.5 rounded-xl font-bold text-xs hover:bg-primary-hover transition-colors shadow-lg shadow-green-500/10">
+            Report New Issue
+          </Link>
         </div>
       </div>
 
-      {/* Copyright */}
-      <div className="text-center text-sm text-green-900 dark:text-green-400 mt-8 border-t border-green-300 dark:border-green-700 pt-4">
-        © {new Date().getFullYear()} GreenHub. All rights reserved.
+      <div className="max-w-7xl mx-auto  px-6 mt-16 pt-8 border-t border-[var(--border-color)] flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">
+        <p>© {new Date().getFullYear()} EcoFine Core. All Rights Reserved.</p>
+        <div className="flex items-center gap-6">
+          <a href="#" className="hover:text-primary transition-colors">Security</a>
+          <a href="#" className="hover:text-primary transition-colors">Status</a>
+          <a href="#" className="hover:text-primary transition-colors">API</a>
+        </div>
       </div>
     </footer>
   );

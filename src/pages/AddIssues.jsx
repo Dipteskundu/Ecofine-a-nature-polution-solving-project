@@ -1,260 +1,170 @@
-import React, { useState, useEffect } from "react";
-import { getAuth } from "firebase/auth";
-import toast from "react-hot-toast";
-import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../hooks/useAuth';
+import useAxiosSecure from '../hooks/useAxiosSecure';
+import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
+import { Sparkles, FileText, MapPin, DollarSign, AlignLeft, Tag, Calendar, ImageIcon } from 'lucide-react';
+import { motion as Motion } from 'framer-motion';
+import Button from '../components/ui/Button';
+import Card from '../components/ui/Card';
+import Input from '../components/ui/Input';
+import Select from '../components/ui/Select';
 
-const AddIssues = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [loading, setLoading] = useState(false);
+export default function AddIssues() {
+    const { user } = useAuth();
+    const navigate = useNavigate();
+    const axiosSecure = useAxiosSecure();
+    const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    document.title = 'Add New Issue | EcoFine';
-  }, []);
+    const [formData, setFormData] = useState({
+        title: '',
+        description: '',
+        location: '',
+        image: '',
+        amount: '',
+        category: '',
+        email: user?.email || '',
+        status: 'pending'
+    });
 
-  const [issue, setIssue] = useState({
-    title: "",
-    category: location.state?.category || "",
-    location: "",
-    description: "",
-    image: "",
-    amount: "",
-    status: "ongoing",
-    date: new Date().toISOString().split("T")[0],
-    email: user?.email || "",
-  });
+    useEffect(() => {
+        document.title = 'Report Issue | EcoFine';
+    }, []);
 
-  const categories = [
-    'Garbage',
-    'Illegal Construction',
-    'Broken Public Property',
-    'Road Damage',
-    'Water Issues',
-    'Waste Management',
-    'Tree Plantation',
-    'Infrastructure'
-  ];
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setIssue({ ...issue, [name]: value });
-  };
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+        try {
+            await axiosSecure.post('/issues', {
+                ...formData,
+                amount: parseFloat(formData.amount),
+                createdAt: new Date().toISOString()
+            });
+            toast.success('Report submitted successfully!');
+            navigate('/my-issues');
+        } catch (err) {
+            console.error(err);
+            toast.error('Submission failed. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
-    if (!user) {
-      toast.error('Please login to add an issue');
-      navigate('/login');
-      return;
-    }
+    return (
+        <div className="min-h-screen bg-[var(--bg-page)] pt-32 pb-20 px-6 theme-transition">
+            <div className="max-w-4xl mx-auto">
+                <div className="mb-12 text-center">
+                    <div className="flex items-center justify-center gap-2 text-xs font-black text-green-600 uppercase tracking-widest mb-4">
+                        <Sparkles size={16} /> New Environment Report
+                    </div>
+                    <h1 className="text-4xl md:text-6xl font-black text-[var(--text-primary)] tracking-tighter">File a Case.</h1>
+                </div>
 
-    if (!issue.title || !issue.category || !issue.location || !issue.description || !issue.amount) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
+                <Motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                >
+                    <Card className="p-8 md:p-12 border-none shadow-2xl shadow-green-900/5 rounded-[3rem] bg-[var(--bg-card)]">
+                        <form onSubmit={handleSubmit} className="space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <Input
+                                    label="Incident Title"
+                                    name="title"
+                                    value={formData.title}
+                                    onChange={handleChange}
+                                    placeholder="e.g. Hazardous Waste Near River"
+                                    icon={FileText}
+                                    required
+                                />
+                                <Select
+                                    label="Incident Category"
+                                    name="category"
+                                    value={formData.category}
+                                    onChange={handleChange}
+                                    icon={Tag}
+                                    required
+                                    options={[
+                                        { value: '', label: 'Select category' },
+                                        { value: 'Garbage', label: 'Garbage' },
+                                        { value: 'Illegal Construction', label: 'Illegal Construction' },
+                                        { value: 'Broken Public Property', label: 'Broken Public Property' },
+                                        { value: 'Road Damage', label: 'Road Damage' },
+                                        { value: 'Water Issues', label: 'Water Issues' },
+                                        { value: 'Drainage', label: 'Drainage' },
+                                        { value: 'Other', label: 'Other' }
+                                    ]}
+                                />
+                            </div>
 
-    setLoading(true);
-    try {
-      const auth = getAuth();
-      const token = await auth.currentUser.getIdToken();
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <Input
+                                    label="Specific Location"
+                                    name="location"
+                                    value={formData.location}
+                                    onChange={handleChange}
+                                    placeholder="Street, District, Landmark"
+                                    icon={MapPin}
+                                    required
+                                />
+                                <Input
+                                    label="Required Impact Funds ($)"
+                                    name="amount"
+                                    type="number"
+                                    value={formData.amount}
+                                    onChange={handleChange}
+                                    placeholder="Estimated restoration cost"
+                                    icon={DollarSign}
+                                    required
+                                />
+                            </div>
 
-      const payload = {
-        ...issue,
-        amount: parseFloat(issue.amount),
-        email: user.email,
-        userId: user.uid,
-        createdAt: new Date().toISOString(),
-        status: issue.status || 'ongoing'
-      };
+                            <Input
+                                label="Visual Evidence (Image URL)"
+                                name="image"
+                                value={formData.image}
+                                onChange={handleChange}
+                                placeholder="https://image-source.com/photo.jpg"
+                                icon={ImageIcon}
+                            />
 
-      const res = await fetch('http://localhost:3000/issues', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
+                            <div className="space-y-2">
+                                <label className="text-sm font-black text-[var(--text-primary)] uppercase tracking-widest ml-1 flex items-center gap-2">
+                                    <AlignLeft size={14} className="text-green-600" />
+                                    Case Description
+                                </label>
+                                <textarea
+                                    name="description"
+                                    value={formData.description}
+                                    onChange={handleChange}
+                                    rows="4"
+                                    required
+                                    className="w-full p-6 bg-[var(--bg-surface)] border-none rounded-3xl text-[var(--text-primary)] font-medium focus:ring-2 focus:ring-green-500/20 min-h-[150px] transition-all"
+                                    placeholder="Provide comprehensive details about the environmental hazard..."
+                                />
+                            </div>
 
-      if (!res.ok) {
-        throw new Error(`Failed to add issue: ${res.status}`);
-      }
-
-      toast.success('Issue added successfully!');
-      setIssue({
-        title: "",
-        category: "",
-        location: "",
-        description: "",
-        image: "",
-        amount: "",
-        status: "ongoing",
-        date: new Date().toISOString().split("T")[0],
-        email: user.email,
-      });
-      navigate('/my-issues');
-    } catch (error) {
-      console.error('Error adding issue:', error);
-      toast.error('Failed to add issue on server.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center mt-30 p-6">
-      <div className="w-full max-w-2xl bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-8">
-        <h2 className="text-2xl font-semibold text-green-700 mb-6 text-center">
-          Add New Issue
-        </h2>
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block font-medium text-gray-700 dark:text-gray-200 mb-1">
-              Issue Title
-            </label>
-            <input
-              type="text"
-              name="title"
-              value={issue.title}
-              onChange={handleChange}
-              required
-              placeholder="Enter issue title"
-              className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-400 outline-none bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-            />
-          </div>
-
-          <div>
-            <label className="block font-medium text-gray-700 dark:text-gray-200 mb-1">
-              Category
-            </label>
-            <select
-              name="category"
-              value={issue.category}
-              onChange={handleChange}
-              required
-              className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-400 outline-none bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-            >
-              <option value="">Select Category</option>
-              {categories.map((cat, i) => (
-                <option key={i} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block font-medium text-gray-700 dark:text-gray-200 mb-1">
-              Location
-            </label>
-            <input
-              type="text"
-              name="location"
-              value={issue.location}
-              onChange={handleChange}
-              required
-              placeholder="Enter issue location"
-              className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-400 outline-none bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-            />
-          </div>
-
-          <div>
-            <label className="block font-medium text-gray-700 dark:text-gray-200 mb-1">
-              Description
-            </label>
-            <textarea
-              name="description"
-              value={issue.description}
-              onChange={handleChange}
-              required
-              rows="4"
-              placeholder="Describe the issue..."
-              className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-400 outline-none bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-            ></textarea>
-          </div>
-
-          <div>
-            <label className="block font-medium text-gray-700 dark:text-gray-200 mb-1">
-              Image URL
-            </label>
-            <input
-              type="url"
-              name="image"
-              value={issue.image}
-              onChange={handleChange}
-              placeholder="Enter image URL"
-              className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-400 outline-none bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-            />
-            {issue.image && (
-              <img
-                src={issue.image}
-                alt="Preview"
-                className="mt-3 h-32 w-32 object-cover rounded-lg border"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                }}
-              />
-            )}
-          </div>
-
-          <div>
-            <label className="block font-medium text-gray-700 dark:text-gray-200 mb-1">
-              Suggested Fix Budget (Amount)
-            </label>
-            <input
-              type="number"
-              name="amount"
-              value={issue.amount}
-              onChange={handleChange}
-              required
-              placeholder="Enter estimated amount"
-              className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-400 outline-none bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block font-medium text-gray-700 dark:text-gray-200 mb-1">
-                Date
-              </label>
-              <input
-                type="date"
-                name="date"
-                value={issue.date}
-                onChange={handleChange}
-                className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-400 outline-none bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-              />
+                            <div className="pt-6 border-t border-[var(--border-color)] flex flex-col items-center">
+                                <Button
+                                    type="submit"
+                                    loading={loading}
+                                    className="w-full md:w-auto px-12 py-5 text-lg font-black shadow-xl shadow-green-500/20 rounded-2xl"
+                                >
+                                    Deploy Report to Network
+                                </Button>
+                                <p className="mt-4 text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">
+                                    Every report is vetted by community leaders
+                                </p>
+                            </div>
+                        </form>
+                    </Card>
+                </Motion.div>
             </div>
-
-            <div>
-              <label className="block font-medium text-gray-700 dark:text-gray-200 mb-1">
-                User Email
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={user?.email || ''}
-                readOnly
-                className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Submitting...' : 'Submit Issue'}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-export default AddIssues;
+        </div>
+    );
+}

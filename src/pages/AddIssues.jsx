@@ -47,6 +47,16 @@ export default function AddIssues() {
                 createdAt: new Date().toISOString()
             });
             toast.success('Report submitted successfully!');
+            setFormData({
+                title: '',
+                description: '',
+                location: '',
+                image: '',
+                amount: '',
+                category: '',
+                email: user?.email || '',
+                status: 'pending'
+            });
             navigate('/my-issues');
         } catch (err) {
             console.error(err);

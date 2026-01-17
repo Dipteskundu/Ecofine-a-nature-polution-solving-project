@@ -34,6 +34,8 @@ export default function Login() {
     try {
       await login(email, password);
       toast.success('Welcome back!');
+      setEmail('');
+      setPassword('');
       navigate(from, { state: fromState, replace: true });
     } catch (error) {
       let errorMessage = 'Failed to login';
@@ -86,7 +88,7 @@ export default function Login() {
           transition={{ duration: 0.8 }}
           className="hidden lg:block text-white"
         >
-          <h1 className="text-7xl font-bold mb-6 leading-tight">
+          <h1 className="text-8xl font-bold mb-6 leading-tight">
             Welcome <br /> Back
           </h1>
           <p className="text-lg text-white/80 max-w-md mb-8 leading-relaxed">
@@ -148,8 +150,8 @@ export default function Login() {
               </div>
 
               <div className="flex items-center justify-start gap-2 ml-1">
-                <input type="checkbox" id="remember" className="accent-[#5eba61]" />
-                <label htmlFor="remember" className="text-xs text-white/80 cursor-pointer">Remember Me</label>
+                <input type="checkbox" id="remember" className="accent-[#5eba61] size-4" />
+                <label htmlFor="remember" className="text-sm text-white/80 cursor-pointer">Remember Me</label>
               </div>
 
               <button
@@ -187,15 +189,36 @@ export default function Login() {
               <span>Google</span>
             </button>
 
-            <div className="mt-8 pt-6 border-t border-white/10 text-center">
-              <p className="text-white/60 text-sm">
-                By clicking on "Sign in now" you agree to <br />
-                <Link to="/terms" className="text-white hover:underline">Terms of Service</Link> | <Link to="/privacy" className="text-white hover:underline">Privacy Policy</Link>
-              </p>
-              <div className="mt-6 flex justify-center gap-4">
-                <button onClick={handleDemoLogin} className="text-xs font-bold text-[#5eba61] hover:underline uppercase tracking-widest">Demo User</button>
+            <div className="mt-8 pt-8 border-t border-white/10">
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">Quick Access</span>
+                  <div className="h-px flex-1 bg-white/10 ml-4"></div>
+                </div>
+
+                <Motion.button
+                  type="button"
+                  onClick={handleDemoLogin}
+                  whileHover={{ y: -4, backgroundColor: "rgba(255, 255, 255, 0.1)" }}
+                  whileTap={{ scale: 0.98 }}
+                  className="group relative w-full flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-[#5eba61]/50 transition-all text-left overflow-hidden"
+                >
+                  <div className="absolute top-5 right-8 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <LogIn size={25} className="text-[#5eba61]" />
+                  </div>
+
+                  <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-[#5eba61] group-hover:bg-[#5eba61] group-hover:text-white transition-colors">
+                    <UserIcon size={24} />
+                  </div>
+
+                  <div>
+                    <h4 className="text-white font-bold text-sm">Demo User Account</h4>
+                    <p className="text-white/40 text-xs mt-0.5">diptes@gmail.com • passWord</p>
+                  </div>
+                </Motion.button>
               </div>
-              <p className="mt-6 text-sm text-white/60">
+
+              <p className="mt-8 text-sm text-white/60 text-center">
                 New to EcoFine? <Link to="/register" className="text-white font-bold hover:underline">Register now</Link>
               </p>
             </div>

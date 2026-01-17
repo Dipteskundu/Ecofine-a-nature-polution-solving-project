@@ -75,6 +75,14 @@ export default function Register() {
     try {
       await register(formData.name, formData.email, formData.password, formData.photoURL || null);
       toast.success('Welcome to EcoFine!');
+      setFormData({
+        name: '',
+        email: '',
+        photoURL: '',
+        password: '',
+        confirmPassword: ''
+      });
+      setAcceptTerms(false);
       navigate('/');
     } catch (error) {
       let errorMessage = 'Registration failed';

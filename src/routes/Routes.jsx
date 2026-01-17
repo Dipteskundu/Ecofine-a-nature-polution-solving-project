@@ -1,30 +1,35 @@
+import { Suspense, lazy } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import MainLayout from '../MainLayout/MainLayout';
-import AddIssues from '../pages/AddIssues';
-import AllIssues from '../pages/AllIssues';
-import MyIssues from '../pages/MyIssues';
-import MyContribution from '../pages/MyContribution';
-import Home from '../pages/Home';
-import IssueDetails from '../pages/IssueDetails';
-import Login from '../pages/Login';
-import Register from '../pages/Register';
-import ForgotPassword from '../pages/ForgotPassword';
-import AdminHub from '../pages/AdminHub';
+import Loader from '../components/ui/Loader';
+
+// Lazy load pages
+const Home = lazy(() => import('../pages/Home'));
+const AddIssues = lazy(() => import('../pages/AddIssues'));
+const AllIssues = lazy(() => import('../pages/AllIssues'));
+const MyIssues = lazy(() => import('../pages/MyIssues'));
+const MyContribution = lazy(() => import('../pages/MyContribution'));
+const IssueDetails = lazy(() => import('../pages/IssueDetails'));
+const Login = lazy(() => import('../pages/Login'));
+const Register = lazy(() => import('../pages/Register'));
+const ForgotPassword = lazy(() => import('../pages/ForgotPassword'));
+const AdminHub = lazy(() => import('../pages/AdminHub'));
+const NotFound = lazy(() => import('../pages/NotFound'));
+const About = lazy(() => import('../pages/About'));
+const ContactUs = lazy(() => import('../pages/ContactUs'));
+const HelpFAQ = lazy(() => import('../pages/HelpFAQ'));
+const PrivacyPolicy = lazy(() => import('../pages/PrivacyPolicy'));
+const Services = lazy(() => import('../pages/Services'));
+const Blog = lazy(() => import('../pages/Blog'));
+const BlogPost = lazy(() => import('../pages/BlogPost'));
+const BlogCategory = lazy(() => import('../pages/BlogCategory'));
+const ServicesReporting = lazy(() => import('../pages/ServicesReporting'));
+const ServicesAnalytics = lazy(() => import('../pages/ServicesAnalytics'));
+const ServicesPartnerships = lazy(() => import('../pages/ServicesPartnerships'));
+const Profile = lazy(() => import('../pages/Profile'));
+
 import AdminRoute from '../components/AdminRoute';
 import ProtectedRoute from '../components/ProtectedRoute';
-import NotFound from '../pages/NotFound';
-import About from '../pages/About';
-import ContactUs from '../pages/ContactUs';
-import HelpFAQ from '../pages/HelpFAQ';
-import PrivacyPolicy from '../pages/PrivacyPolicy';
-import Services from '../pages/Services';
-import Blog from '../pages/Blog';
-import BlogPost from '../pages/BlogPost';
-import BlogCategory from '../pages/BlogCategory';
-import ServicesReporting from '../pages/ServicesReporting';
-import ServicesAnalytics from '../pages/ServicesAnalytics';
-import ServicesPartnerships from '../pages/ServicesPartnerships';
-import Profile from '../pages/Profile';
 
 const Routes = createBrowserRouter([
     {

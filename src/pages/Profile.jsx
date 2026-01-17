@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Mail, Image as ImageIcon, Save } from 'lucide-react';
-import { getAuth, updateProfile } from 'firebase/auth';
 import { useAuth } from '../hooks/useAuth';
 import Button from '../components/ui/Button';
 import toast from 'react-hot-toast';
 
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, updateUserProfile } = useAuth();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [photoURL, setPhotoURL] = useState(user?.photoURL || '');
@@ -24,8 +23,6 @@ export default function Profile() {
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
-    const auth = getAuth();
-    if (!auth.currentUser) return;
 
     if (!displayName.trim()) {
       toast.error('Please enter your name');
@@ -34,13 +31,11 @@ export default function Profile() {
 
     setSaving(true);
     try {
-      await updateProfile(auth.currentUser, {
-        displayName: displayName.trim(),
-        photoURL: photoURL.trim() || null
-      });
-      toast.success('Profile updated');
+      await updateUserProfile(displayName.trim(), photoURL.trim() || null);
+      toast.success('Profile updated successfully');
       navigate(-1);
-    } catch {
+    } catch (error) {
+      console.error(error);
       toast.error('Failed to update profile');
     } finally {
       setSaving(false);
@@ -73,6 +68,7 @@ export default function Profile() {
                     src={photoURL}
                     alt={displayName || 'User'}
                     className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
                     onError={(e) => { e.target.src = 'https://via.placeholder.com/80?text=User'; }}
                   />
                 ) : (

@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion as Motion } from 'framer-motion';
 import Navbar from '../components/Navbar/Navbar';
 import Footer from '../components/Footer/Footer';
+import Loader from '../components/ui/Loader';
 
 const MainLayout = () => {
   const { pathname } = useLocation();
@@ -17,15 +18,17 @@ const MainLayout = () => {
       <Navbar />
       <div className="flex-grow">
         <AnimatePresence mode="wait">
-          <motion.div
+          <Motion.div
             key={pathname}
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -16 }}
             transition={{ duration: 0.25, ease: 'easeInOut' }}
           >
-            <Outlet />
-          </motion.div>
+            <Suspense fallback={<Loader fullPage={false} />}>
+              <Outlet />
+            </Suspense>
+          </Motion.div>
         </AnimatePresence>
       </div>
       <Footer />

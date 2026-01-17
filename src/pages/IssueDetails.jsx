@@ -19,11 +19,9 @@ export default function IssueDetails() {
   const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [contributions, setContributions] = useState([]);
-  const [loading, setLoading] = useState(true);
   const axiosSecure = useAxiosSecure();
   const [relatedIssues, setRelatedIssues] = useState([]);
   const [loadingRelated, setLoadingRelated] = useState(true);
-
   useEffect(() => {
     document.title = issue ? `${issue.title} | EcoFine` : 'Issue Details | EcoFine';
   }, [issue]);
@@ -33,9 +31,19 @@ export default function IssueDetails() {
     const fetchIssue = async () => {
       try {
         if (!id) return;
+        // console.log('Fetching issue details for:', id);
         const { data } = await axiosSecure.get(`/issues/${id}`);
-        if (isMounted) setIssue(data.result || data.issue || data);
+        // console.log('Issue details response:', data);
+
+        if (data.success && data.result) {
+          if (isMounted) setIssue(data.result);
+        } else if (data.issue) {
+          if (isMounted) setIssue(data.issue);
+        } else {
+          if (isMounted) setIssue(data);
+        }
       } catch (err) {
+        console.error('Error fetching issue details:', err);
         toast.error('Failed to load issue');
       } finally {
         if (isMounted) setLoadingIssue(false);
@@ -43,31 +51,31 @@ export default function IssueDetails() {
     };
     fetchIssue();
     return () => { isMounted = false; };
-  }, [id]);
+  }, [id, axiosSecure]);
 
   useEffect(() => {
     let active = true;
     const load = async () => {
+      // Only fetch contributions if user is logged in
+      if (!user || !id) return;
+
       try {
-        if (!id) return;
         const { data } = await axiosSecure.get(`/my-contribution`);
         const list = Array.isArray(data) ? data : (data.result || []);
         const filtered = list.filter((c) => c.issueId === id);
         filtered.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
         if (active) {
           setContributions(filtered);
-          setLoading(false);
         }
-      } catch (err) {
+      } catch {
         if (active) {
-          setLoading(false);
           setContributions([]);
         }
       }
     };
     load();
     return () => { active = false; };
-  }, [id]);
+  }, [id, axiosSecure, user]);
 
   useEffect(() => {
     const fetchRelated = async () => {
@@ -82,9 +90,49 @@ export default function IssueDetails() {
       }
     };
     fetchRelated();
-  }, [id]);
+  }, [id, axiosSecure]);
+
+  /* 
+  const [isLiked, setIsLiked] = useState(false);
+  useEffect(() => {
+    const fetchFavoriteStatus = async () => {
+      if (!user || !id) return;
+      try {
+        const { data } = await axiosSecure.get(`/users/favorites/${user.email}`);
+        if (data.success) {
+          setIsLiked(data.favorites.includes(id));
+        }
+      } catch (err) {
+        console.error('Error fetching favorite status:', err);
+      }
+    };
+    fetchFavoriteStatus();
+  }, [id, user, axiosSecure]);
+
+  const handleLikeToggle = async () => {
+    if (!user) {
+      toast.error('Please login to favorite issues');
+      navigate('/login', { state: { from: `/issue-details/${id}` } });
+      return;
+    }
+
+    try {
+      const { data } = await axiosSecure.post('/users/favorites', { issueId: id });
+      if (data.success) {
+        setIsLiked(data.isLiked);
+        toast.success(data.isLiked ? 'Added to favorites' : 'Removed from favorites', {
+          icon: data.isLiked ? '❤️' : '💔',
+        });
+      }
+    } catch {
+      toast.error('Failed to update favorites');
+    }
+  };
+  */
 
   const totalCollected = contributions.reduce((sum, contribution) => sum + (Number(contribution.amount) || 0), 0);
+
+
   const targetAmount = issue?.amount || 0;
   const progressPercentage = targetAmount > 0 ? Math.min((totalCollected / targetAmount) * 100, 100) : 0;
   const isGoalReached = progressPercentage >= 100;
@@ -114,7 +162,7 @@ export default function IssueDetails() {
       const list = Array.isArray(data) ? data : (data.result || []);
       const filtered = list.filter((c) => c.issueId === id);
       setContributions(filtered);
-    } catch (error) {
+    } catch {
       toast.error('Transaction failed');
     }
   };
@@ -159,11 +207,8 @@ export default function IssueDetails() {
               {issue.title}
             </h1>
           </div>
-          <div className="flex gap-3">
-            <Button variant="outline" className="rounded-2xl h-14 w-14 p-0 flex items-center justify-center border-gray-200">
-              <Heart size={20} className="text-red-500" />
-            </Button>
-          </div>
+
+
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
@@ -245,7 +290,7 @@ export default function IssueDetails() {
           {/* Action Sidebar */}
           <div className="lg:col-span-4">
             <div className="sticky top-32 space-y-6">
-              <Card className="p-10 border-none bg-[var(--bg-card)] shadow-2xl shadow-green-900/5 rounded-[3rem] theme-transition">
+              <Card className="p-10 border-none bg-[var(--bg-card)] shadow-2xl shadow-green-900/5 rounded-[2rem] theme-transition">
                 <div className="mb-10">
                   <div className="flex justify-between items-end mb-4">
                     <div>

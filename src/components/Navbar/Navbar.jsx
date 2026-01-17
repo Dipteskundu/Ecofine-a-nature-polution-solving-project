@@ -222,6 +222,7 @@ export default function Navbar() {
                         src={user.photoURL}
                         alt={user.displayName || 'User'}
                         className="w-10 h-10 rounded-full border-2 border-primary object-cover"
+                        referrerPolicy="no-referrer"
                         onError={(e) => { e.target.src = 'https://via.placeholder.com/40x40?text=User'; }}
                       />
                     ) : (
@@ -353,7 +354,12 @@ export default function Navbar() {
                 <div className="pt-6 border-t border-[var(--border-color)] space-y-6">
                   <div className="flex items-center space-x-4">
                     {user.photoURL ? (
-                      <img src={user.photoURL} alt={user.displayName || 'User'} className="w-12 h-12 rounded-full border-2 border-primary" />
+                      <img
+                        src={user.photoURL}
+                        alt={user.displayName || 'User'}
+                        className="w-12 h-12 rounded-full border-2 border-primary"
+                        referrerPolicy="no-referrer"
+                      />
                     ) : (
                       <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center border-2 border-green-600 shadow-lg">
                         <User className="w-6 h-6 text-white" />

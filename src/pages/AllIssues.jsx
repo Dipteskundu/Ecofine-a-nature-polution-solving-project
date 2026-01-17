@@ -6,7 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import useAxiosSecure from '../hooks/useAxiosSecure';
 import toast from 'react-hot-toast';
 import IssueCard from '../components/ui/IssueCard';
-import IssueCardSkeleton from '../components/ui/IssueCardSkeleton';
+import Loader from '../components/ui/Loader';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import Button from '../components/ui/Button';
@@ -53,7 +53,7 @@ export default function AllIssues() {
     };
 
     fetchIssues();
-  }, [search, category, status, sort, page]);
+  }, [axiosSecure, search, category, status, sort, page]);
 
   const updateFilters = (newParams) => {
     const params = new URLSearchParams(searchParams);
@@ -225,13 +225,9 @@ export default function AllIssues() {
             </div>
 
             {/* Results Grid */}
-            <div className="min-h-[600px]">
+            <div className="min-h-[600px] flex flex-col items-center justify-center">
               {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {[1, 2, 3, 4, 5, 6].map((n) => (
-                    <IssueCardSkeleton key={n} />
-                  ))}
-                </div>
+                <Loader fullPage={false} />
               ) : issues.length === 0 ? (
                 <EmptyState
                   title="No reports found"

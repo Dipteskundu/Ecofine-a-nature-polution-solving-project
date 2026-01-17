@@ -12,8 +12,9 @@ import {
 } from 'firebase/auth';
 import { auth } from '../Firebase/firebase.config';
 import { AuthContext } from './AuthContext';
+import Loader from '../components/ui/Loader';
 
-const API_BASE = 'https://ecofine-server.vercel.app';
+const API_BASE = import.meta.env.VITE_API_BASE;
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -83,6 +84,43 @@ export const AuthProvider = ({ children }) => {
     return sendPasswordResetEmail(auth, email);
   };
 
+  // Update Profile with Backend Sync
+  const updateUserProfile = async (name, photo) => {
+    if (!auth.currentUser) return;
+
+    // 1. Update Firebase Profile
+    await updateProfile(auth.currentUser, {
+      displayName: name,
+      photoURL: photo
+    });
+
+    // 2. Sync with Backend
+    try {
+      await axios.post(`${API_BASE}/users`, {
+        name: name,
+        email: auth.currentUser.email,
+        photo: photo
+      });
+    } catch (err) {
+      console.error("Backend sync failed during profile update:", err);
+    }
+
+    // 3. Force UI Refresh by reloading user data to ensure we have the latest source of truth
+    try {
+      await auth.currentUser.reload();
+      // Create a shallow copy to trigger React re-render
+      const refreshedUser = { ...auth.currentUser };
+      setUser(refreshedUser);
+      return refreshedUser;
+    } catch (reloadErr) {
+      console.error("Failed to reload user data:", reloadErr);
+      // Fallback to manual update if reload fails
+      const manualUpdate = { ...auth.currentUser, displayName: name, photoURL: photo };
+      setUser(manualUpdate);
+      return manualUpdate;
+    }
+  };
+
   const value = {
     user,
     isAdmin,
@@ -91,12 +129,13 @@ export const AuthProvider = ({ children }) => {
     register,
     googleLogin,
     logout,
-    resetPassword
+    resetPassword,
+    updateUserProfile
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {loading ? <Loader /> : children}
     </AuthContext.Provider>
   );
 };

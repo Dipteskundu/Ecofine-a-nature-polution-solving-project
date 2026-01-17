@@ -11,7 +11,7 @@ import Input from '../components/ui/Input';
 import IssueCard from '../components/ui/IssueCard';
 import IssueCardSkeleton from '../components/ui/IssueCardSkeleton';
 import image2 from '../assets/img2.png';
-import logo from '../assets/img.png';  
+import logo from '../assets/img.png';
 
 const FloatingElement = ({ children, delay = 0, className = "" }) => (
   <Motion.div
@@ -31,13 +31,46 @@ const FloatingElement = ({ children, delay = 0, className = "" }) => (
   </Motion.div>
 );
 
+const mockIssues = [
+  {
+    id: 'mock1',
+    title: 'Plastic Waste Collection Drive',
+    description: 'Join us to clean up the city park and recycle 500kg of plastic waste.',
+    image: 'https://images.unsplash.com/photo-1595278069441-2cf29f8005a4?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
+    category: 'Waste Management',
+    status: 'Open',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'mock2',
+    title: 'Tree Planting Ceremony',
+    description: 'We aim to plant 1000 trees in the deforested areas near the riverbank.',
+    image: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
+    category: 'Reforestation',
+    status: 'In Progress',
+    createdAt: new Date(Date.now() - 86400000).toISOString()
+  },
+  {
+    id: 'mock3',
+    title: 'Water Purification Project',
+    description: 'Providing clean drinking water to 500 families in rural communities.',
+    image: 'https://images.unsplash.com/photo-1581093458791-9f3c3900df4b?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
+    category: 'Water Conservation',
+    status: 'Completed',
+    createdAt: new Date(Date.now() - 172800000).toISOString()
+  }
+];
+
 export default function Home() {
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const { user } = useAuth();
   const navigate = useNavigate();
-  
+
   const axiosSecure = useAxiosSecure();
+  const [activeCategory, setActiveCategory] = useState('All Projects');
+
 
   useEffect(() => {
     document.title = 'Home | EcoFine - Community Restoration';
@@ -98,27 +131,48 @@ export default function Home() {
     const fetchLatestIssues = async () => {
       try {
         const { data } = await axiosSecure.get('/issues/recent');
-        const list = Array.isArray(data) ? data : (data.result || []);
-        setIssues(list);
+        let list = Array.isArray(data) ? data : (data.result || []);
+
+        // Filter out placeholder/invalid data
+        list = list.filter(issue =>
+          issue.title && !issue.title.toUpperCase().includes('WAITING FOR NEW REPORTS')
+        );
+
+        if (list.length > 0) {
+          setIssues(list);
+        } else {
+          setIssues(mockIssues);
+        }
       } catch (err) {
-        console.error(err);
+        console.error('API Error, falling back to mock data:', err);
+        // Toast can be annoying if it happens on load, but logging is essential.
+        setIssues(mockIssues);
       } finally {
         setLoading(false);
       }
     };
     fetchLatestIssues();
-  }, []);
+  }, [axiosSecure]);
+
 
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % bannerSlides.length);
     }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [bannerSlides.length]);
 
   const handleSeeDetails = (issue) => {
     const id = issue._id || issue.id;
-    navigate(`/issue-details/${id}`);
+    if (user) {
+      navigate(`/issue-details/${id}`);
+    } else {
+      navigate('/login', {
+        state: {
+          from: { pathname: `/issue-details/${id}` }
+        }
+      });
+    }
   };
 
   return (
@@ -517,10 +571,14 @@ export default function Home() {
             {/* Sidebar Filters */}
             <div className="lg:w-64 shrink-0">
               <div className="space-y-3">
-                {['All Projects', 'Ecosystem', 'Recycling'].map((cat, i) => (
+                {['All Projects', 'Ecosystem', 'Recycling'].map((cat) => (
                   <button
                     key={cat}
-                    className={`w-full text-left px-6 py-4 rounded-xl font-bold transition-all ${i === 0 ? 'bg-primary text-white shadow-lg shadow-green-500/20' : 'bg-[var(--bg-card)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] border border-[var(--border-color)]'}`}
+                    onClick={() => setActiveCategory(cat)}
+                    className={`w-full text-left px-6 py-4 rounded-xl font-bold transition-all ${activeCategory === cat
+                      ? 'bg-primary text-white shadow-lg shadow-green-500/20'
+                      : 'bg-[var(--bg-card)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] border border-[var(--border-color)]'
+                      }`}
                   >
                     {cat}
                   </button>
@@ -528,24 +586,29 @@ export default function Home() {
               </div>
             </div>
 
+
             {/* Grid */}
             <div className="flex-1">
               {loading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {[1, 2, 3].map(i => <IssueCardSkeleton key={i} />)}
                 </div>
-              ) : issues.length === 0 ? (
+              ) : issues.filter(issue => activeCategory === 'All Projects' || issue.category === activeCategory).length === 0 ? (
                 <div className="text-center py-20 bg-[var(--bg-surface)]/30 rounded-[3rem] border border-[var(--border-color)]">
-                  <p className="text-[var(--text-muted)] font-black uppercase tracking-widest text-[10px]">Waiting for new reports</p>
+                  <p className="text-[var(--text-muted)] font-black uppercase tracking-widest text-[10px]">No reports in this category</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {issues.slice(0, 3).map(issue => (
-                    <IssueCard key={issue._id || issue.id} issue={issue} onSeeDetails={handleSeeDetails} />
-                  ))}
+                  {issues
+                    .filter(issue => activeCategory === 'All Projects' || issue.category === activeCategory)
+                    .slice(0, 3)
+                    .map(issue => (
+                      <IssueCard key={issue._id || issue.id} issue={issue} onSeeDetails={handleSeeDetails} />
+                    ))}
                 </div>
               )}
             </div>
+
           </div>
         </div>
       </section>

@@ -1,6 +1,6 @@
 import { auth } from '../Firebase/firebase.config'
 
-export const API_BASE = 'https://ecofine-server.vercel.app'
+export const API_BASE = import.meta.env.VITE_API_BASE
 
 const buildUrl = (endpoint) => {
   if (/^https?:\/\//i.test(endpoint)) return endpoint

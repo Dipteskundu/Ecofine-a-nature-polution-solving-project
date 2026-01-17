@@ -89,7 +89,7 @@ export default function MyContribution() {
     };
     if (user) load(); else setLoading(false);
     return () => { active = false; };
-  }, [user]);
+  }, [user, axiosSecure]); // Added axiosSecure to dependencies for completeness
 
   if (!user) {
     return (

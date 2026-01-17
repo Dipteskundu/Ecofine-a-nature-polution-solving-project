@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { auth } from '../Firebase/firebase.config';
 
 const axiosSecure = axios.create({
-    baseURL: 'https://ecofine-server.vercel.app',
+    baseURL: import.meta.env.VITE_API_BASE,
 });
 
 const useAxiosSecure = () => {
